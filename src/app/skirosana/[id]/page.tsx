@@ -63,7 +63,7 @@ export default function SkirosanaDetailPage({
 
 function PalletDetail({ id }: { id: string }) {
   const search = useSearchParams();
-  const { appUser } = useAuth();
+  const { appUser, firebaseUser } = useAuth();
   const initialListing = (search.get("listing") as ListingStatus | "all" | null) || "all";
 
   const [pallet, setPallet] = useState<Pallet | null>(null);
@@ -72,6 +72,8 @@ function PalletDetail({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [aiBatchBusy, setAiBatchBusy] = useState(false);
+  const [aiBatchStatus, setAiBatchStatus] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<Filters>({
     q: "",
@@ -105,6 +107,57 @@ function PalletDetail({ id }: { id: string }) {
   }, [id]);
 
   const canManage = hasPermission(appUser?.role, "managePallets");
+
+  const runAiBatch = async (rerun: boolean) => {
+    if (!pallet || !appUser) return;
+    const unenrichedCount = products.filter(
+      (p) =>
+        p.listingStatus !== "disposed" &&
+        (rerun || p.aiStatus === "not_started" || p.aiStatus === "failed")
+    ).length;
+    if (unenrichedCount === 0) {
+      setAiBatchStatus("Nav produktu, ko bagātināt.");
+      setTimeout(() => setAiBatchStatus(null), 4000);
+      return;
+    }
+    const confirmMsg = rerun
+      ? `Pārbagātināt VISUS ${products.length} produktus? (~30-60 sek katrs)`
+      : `Bagātināt ${unenrichedCount} produktus? (~30-60 sek katrs, kopā ${Math.ceil(unenrichedCount * 0.75)} min)`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setAiBatchBusy(true);
+    setAiBatchStatus("Sūta uz Claude…");
+    try {
+      if (!firebaseUser) throw new Error("Trūkst tokena — pārstartē sesiju");
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch("/api/ai/enrich-pallet", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ palletId: pallet.id, rerun, limit: 200 }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        processed?: number;
+        succeeded?: number;
+        failed?: number;
+      };
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setAiBatchStatus(
+        `Pabeigts: ${data.succeeded} sekmīgi · ${data.failed} kļūdas`
+      );
+      await refreshProducts();
+    } catch (err) {
+      setAiBatchStatus(
+        err instanceof Error ? `Kļūda: ${err.message}` : "Neparedzēta kļūda"
+      );
+    } finally {
+      setAiBatchBusy(false);
+      setTimeout(() => setAiBatchStatus(null), 10000);
+    }
+  };
 
   const syncFromJobalots = async () => {
     if (!pallet?.jobalotsUrl || !appUser) return;
@@ -251,8 +304,30 @@ function PalletDetail({ id }: { id: string }) {
               {syncing ? "Sinhronizē…" : "↻ Sync no Jobalots"}
             </button>
           )}
-          {syncStatus && (
-            <span className="text-[11px] text-slate-500">{syncStatus}</span>
+          {canManage && (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => runAiBatch(false)}
+                disabled={aiBatchBusy}
+                className="rounded-md bg-violet-600 px-2 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+              >
+                {aiBatchBusy ? "AI strādā…" : "✨ Bagātināt nebagātinātos"}
+              </button>
+              <button
+                type="button"
+                onClick={() => runAiBatch(true)}
+                disabled={aiBatchBusy}
+                className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+              >
+                Pārbagātināt visus
+              </button>
+            </div>
+          )}
+          {(syncStatus || aiBatchStatus) && (
+            <span className="text-[11px] text-slate-500">
+              {syncStatus || aiBatchStatus}
+            </span>
           )}
         </div>
       </div>

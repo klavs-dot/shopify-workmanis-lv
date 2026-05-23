@@ -8,7 +8,7 @@ import { updateProduct } from "@/lib/firestore/products";
 import { logAudit } from "@/lib/firestore/audit";
 import { hasPermission } from "@/lib/auth/roles";
 import { computePricing, roundToDot99 } from "@/lib/pricing";
-import type { Product } from "@/lib/types";
+import type { AiStatus, Product } from "@/lib/types";
 
 interface ProductActionsPanelProps {
   product: Product;
@@ -35,11 +35,12 @@ export function ProductActionsPanel({
   onChanged,
   onCancel,
 }: ProductActionsPanelProps) {
-  const { appUser } = useAuth();
+  const { appUser, firebaseUser } = useAuth();
 
   const canApprove = hasPermission(appUser?.role, "approveProducts");
   const canChangePrice = hasPermission(appUser?.role, "changePrice");
   const canMarkSold = hasPermission(appUser?.role, "approveProducts");
+  const canEnrich = appUser?.role === "MASTER" || appUser?.role === "ADMIN";
 
   const [discount, setDiscount] = useState<number>(product.listingDiscountPercent ?? 50);
   const [note, setNote] = useState<string>(product.customerNote ?? "");
@@ -52,6 +53,12 @@ export function ProductActionsPanel({
   const [showSold, setShowSold] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiStatusLocal, setAiStatusLocal] = useState<AiStatus | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const aiStatus: AiStatus = aiStatusLocal ?? product.aiStatus;
 
   // The "shop" displays the full RRP and a strikethrough discount of this %.
   // The customer pays this amount:
@@ -138,6 +145,39 @@ export function ProductActionsPanel({
       "product_customer_note_set"
     );
 
+  const runAiEnrichment = async () => {
+    if (!firebaseUser) return;
+    setAiBusy(true);
+    setAiError(null);
+    setAiStatusLocal("enrichment_pending");
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch("/api/ai/enrich-product", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId: product.id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        enriched?: { confidenceScore?: number };
+      };
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const conf = data.enriched?.confidenceScore ?? 0;
+      setAiStatusLocal(conf >= 0.6 ? "enriched" : "needs_review");
+      onChanged?.();
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Kļūda");
+      setAiStatusLocal("failed");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -219,6 +259,125 @@ export function ProductActionsPanel({
             {(product.referencePrice - discountedPrice).toFixed(2)}
           </strong>
         </div>
+      </section>
+
+      {/* ===== AI enrichment ===== */}
+      <section className="rounded-md border border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-xs font-medium text-slate-700">AI bagātinājums (Claude Sonnet)</div>
+            <div className="text-[11px] text-slate-500">
+              Status:{" "}
+              <span className="font-medium">
+                {aiStatus === "enriched"
+                  ? "Bagātināts"
+                  : aiStatus === "needs_review"
+                  ? "Vajag pārskatīt"
+                  : aiStatus === "enrichment_pending"
+                  ? "Apstrādā…"
+                  : aiStatus === "failed"
+                  ? "Kļūda"
+                  : "Nesākts"}
+              </span>
+              {product.confidenceScore != null && (
+                <>
+                  {" · "}
+                  Confidence:{" "}
+                  <strong className="tabular">
+                    {(product.confidenceScore * 100).toFixed(0)}%
+                  </strong>
+                </>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={runAiEnrichment}
+            disabled={!canEnrich || aiBusy}
+            className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            {aiBusy
+              ? "Bagātina… (30-60 sek)"
+              : aiStatus === "enriched" || aiStatus === "needs_review"
+              ? "✨ Pārbagātināt"
+              : "✨ Sākt AI bagātinājumu"}
+          </button>
+        </div>
+
+        {aiError && (
+          <div className="mt-2 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+            {aiError}
+          </div>
+        )}
+
+        {(product.enrichedTitle || product.descriptionLv) && (
+          <div className="mt-3 space-y-2 rounded-md bg-slate-50 p-3">
+            {product.enrichedTitle && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                  AI title
+                </div>
+                <div className="text-sm text-slate-900">{product.enrichedTitle}</div>
+              </div>
+            )}
+            {product.descriptionLv && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                  Apraksts LV
+                </div>
+                <div className="text-xs text-slate-700">{product.descriptionLv}</div>
+              </div>
+            )}
+            {product.descriptionEn && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                  Description EN
+                </div>
+                <div className="text-xs text-slate-700">{product.descriptionEn}</div>
+              </div>
+            )}
+            {product.enrichedImages && product.enrichedImages.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                  Atrastās bildes ({product.enrichedImages.length})
+                </div>
+                <div className="mt-1 flex gap-1.5 overflow-x-auto">
+                  {product.enrichedImages.slice(0, 8).map((src, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      className="h-16 w-16 shrink-0 rounded object-cover ring-1 ring-slate-300"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {product.sourceUrls && product.sourceUrls.length > 0 && (
+              <details className="text-[11px]">
+                <summary className="cursor-pointer text-slate-500">
+                  Avoti ({product.sourceUrls.length})
+                </summary>
+                <ul className="mt-1 space-y-0.5">
+                  {product.sourceUrls.slice(0, 6).map((url, i) => (
+                    <li key={i} className="truncate">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-700 underline-offset-2 hover:underline"
+                      >
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ===== Customer note ===== */}
