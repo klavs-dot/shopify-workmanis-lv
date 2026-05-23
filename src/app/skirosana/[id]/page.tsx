@@ -6,7 +6,10 @@ import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
-import { getPallet } from "@/lib/firestore/pallets";
+import { getPallet, updatePallet } from "@/lib/firestore/pallets";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { logAudit } from "@/lib/firestore/audit";
+import { hasPermission } from "@/lib/auth/roles";
 import { listProducts } from "@/lib/firestore/products";
 import {
   ApprovalBadge,
@@ -59,12 +62,15 @@ export default function SkirosanaDetailPage({
 
 function PalletDetail({ id }: { id: string }) {
   const search = useSearchParams();
+  const { appUser } = useAuth();
   const initialListing = (search.get("listing") as ListingStatus | "all" | null) || "all";
 
   const [pallet, setPallet] = useState<Pallet | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<Filters>({
     q: "",
@@ -90,6 +96,45 @@ function PalletDetail({ id }: { id: string }) {
       }
     })();
   }, [id]);
+
+  const canManage = hasPermission(appUser?.role, "managePallets");
+
+  const syncFromJobalots = async () => {
+    if (!pallet?.jobalotsUrl || !appUser) return;
+    setSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await fetch(
+        `/api/jobalots/lookup?url=${encodeURIComponent(pallet.jobalotsUrl)}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Lookup neizdevās");
+      await updatePallet(pallet.id, {
+        purchasePrice: data.latestBidPrice ?? pallet.purchasePrice,
+        reservePrice: data.reservePrice ?? pallet.reservePrice,
+        location: data.location ?? pallet.location,
+        weightKg: data.weightKg ?? pallet.weightKg,
+        palletCondition: data.condition ?? pallet.palletCondition,
+      });
+      await logAudit({
+        userId: appUser.uid,
+        userEmail: appUser.email,
+        action: "pallet_jobalots_synced",
+        entityType: "pallet",
+        entityId: pallet.id,
+        after: data,
+      });
+      const fresh = await getPallet(pallet.id);
+      setPallet(fresh);
+      setSyncStatus("Sinhronizēts ✓");
+    } catch (err) {
+      setSyncStatus(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncStatus(null), 4000);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = filters.q.trim().toLowerCase();
@@ -162,6 +207,11 @@ function PalletDetail({ id }: { id: string }) {
                 {pallet.currency}
               </>
             )}
+            {pallet.location && <> · {pallet.location}</>}
+            {pallet.weightKg != null && <> · {pallet.weightKg} kg</>}
+            {pallet.palletCondition && (
+              <> · <span className="font-medium">{pallet.palletCondition}</span></>
+            )}
             {pallet.jobalotsUrl && (
               <>
                 {" · "}
@@ -177,12 +227,27 @@ function PalletDetail({ id }: { id: string }) {
             )}
           </div>
         </div>
-        <Link
-          href="/manifesti"
-          className="text-xs text-slate-500 underline-offset-2 hover:underline"
-        >
-          ← Visi manifesti
-        </Link>
+        <div className="flex flex-col items-end gap-1.5">
+          <Link
+            href="/manifesti"
+            className="text-xs text-slate-500 underline-offset-2 hover:underline"
+          >
+            ← Visi manifesti
+          </Link>
+          {pallet.jobalotsUrl && canManage && (
+            <button
+              type="button"
+              onClick={syncFromJobalots}
+              disabled={syncing}
+              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
+            >
+              {syncing ? "Sinhronizē…" : "↻ Sync no Jobalots"}
+            </button>
+          )}
+          {syncStatus && (
+            <span className="text-[11px] text-slate-500">{syncStatus}</span>
+          )}
+        </div>
       </div>
 
       {/* Listing-status tabs */}

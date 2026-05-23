@@ -15,6 +15,7 @@
     "demo:env": "tsx scripts/write-demo-env.ts"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
     "firebase": "^11.1.0",
     "lucide-react": "^0.460.0",
     "next": "^15.5.18",

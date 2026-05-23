@@ -42,6 +42,20 @@ function ManifestiContent() {
 // Uploader
 // ---------------------------------------------------------------------------
 
+interface JobalotsLookup {
+  manifestSku: string;
+  title: string | null;
+  rrp: number | null;
+  reservePrice: number | null;
+  latestBidPrice: number | null;
+  currency: string | null;
+  location: string | null;
+  weightKg: number | null;
+  condition: string | null;
+  coverImage: string | null;
+  isWinner: boolean;
+}
+
 function ManifestUploader() {
   const { appUser } = useAuth();
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -58,7 +72,63 @@ function ManifestUploader() {
   const [palletId, setPalletId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Live Jobalots lookup state (auto-runs on URL change)
+  const [lookup, setLookup] = useState<JobalotsLookup | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
   const urlOk = !jobalotsUrl || JOBALOTS_URL_PATTERN.test(jobalotsUrl.trim());
+
+  // Debounced auto-lookup whenever the URL becomes a valid Jobalots URL.
+  useEffect(() => {
+    const trimmed = jobalotsUrl.trim();
+    if (!trimmed || !JOBALOTS_URL_PATTERN.test(trimmed)) {
+      setLookup(null);
+      setLookupError(null);
+      return;
+    }
+    let cancelled = false;
+    setLookupLoading(true);
+    setLookupError(null);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/jobalots/lookup?url=${encodeURIComponent(trimmed)}`,
+          { cache: "no-store" }
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(data?.error || "Lookup neizdevās");
+        }
+        setLookup(data as JobalotsLookup);
+        // Auto-fill purchase price if user hasn't typed one yet.
+        if (
+          !purchasePriceStr &&
+          typeof data.latestBidPrice === "number" &&
+          data.latestBidPrice > 0
+        ) {
+          setPurchasePriceStr(data.latestBidPrice.toString());
+        }
+        // Auto-fill pallet name if empty and Jobalots gives us a title.
+        if (!palletName && typeof data.title === "string") {
+          setPalletName(data.title);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setLookupError(err instanceof Error ? err.message : "Lookup neizdevās");
+      } finally {
+        if (!cancelled) setLookupLoading(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // We intentionally do NOT depend on purchasePriceStr/palletName so the
+    // user can edit those without retriggering a lookup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobalotsUrl]);
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -115,22 +185,22 @@ function ManifestUploader() {
       const purchasePrice =
         purchasePriceParsed != null && Number.isFinite(purchasePriceParsed)
           ? purchasePriceParsed
-          : null;
+          : lookup?.latestBidPrice ?? null;
 
       const newPalletId = await createPallet({
         manifestSku: parsedPreview.manifestSku,
-        name: palletName || parsedPreview.manifestSku,
+        name: palletName || lookup?.title || parsedPreview.manifestSku,
         source,
         originalFileName: fname,
         totalProducts: parsedPreview.rows.length,
         totalReferencePrice: parsedPreview.totalReferencePrice,
-        currency: parsedPreview.currency,
+        currency: lookup?.currency || parsedPreview.currency,
         jobalotsUrl: jobalotsUrl.trim() || null,
         purchasePrice,
-        reservePrice: null,
-        location: null,
-        weightKg: null,
-        palletCondition: null,
+        reservePrice: lookup?.reservePrice ?? null,
+        location: lookup?.location ?? null,
+        weightKg: lookup?.weightKg ?? null,
+        palletCondition: lookup?.condition ?? null,
         createdBy: appUser.uid,
       });
       const { inserted } = await bulkInsertProductsForPallet(
@@ -235,9 +305,60 @@ function ManifestUploader() {
               URL jābūt formātā <code>https://jobalots.com/en/products/…</code>
             </p>
           )}
-          <p className="mt-1 text-[11px] text-slate-500">
-            (Posms 2) — no šī URL automātiski izvilksim iegādes summu, weight, location.
-          </p>
+          {lookupLoading && (
+            <p className="mt-1 text-[11px] text-slate-500">
+              Lasa no Jobalots…
+            </p>
+          )}
+          {lookupError && (
+            <p className="mt-1 text-[11px] text-amber-700">
+              Lookup neizdevās: {lookupError} (vari turpināt manuāli)
+            </p>
+          )}
+          {lookup && (
+            <div className="mt-2 flex gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+              {lookup.coverImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={lookup.coverImage}
+                  alt=""
+                  className="h-16 w-16 shrink-0 rounded object-cover ring-1 ring-emerald-200"
+                />
+              )}
+              <div className="min-w-0 text-xs text-emerald-900">
+                <div className="truncate font-medium">{lookup.title || lookup.manifestSku}</div>
+                <div className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                  {lookup.latestBidPrice != null && (
+                    <span>
+                      Iegādes (latest bid):{" "}
+                      <strong className="tabular">
+                        {lookup.latestBidPrice.toFixed(2)} {lookup.currency || "EUR"}
+                      </strong>
+                      {lookup.isWinner && (
+                        <span className="ml-1 rounded-full bg-emerald-200 px-1.5 py-0 text-[9px] font-semibold uppercase text-emerald-900">
+                          Win
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {lookup.rrp != null && (
+                    <span>
+                      Total RRP:{" "}
+                      <strong className="tabular">{lookup.rrp.toFixed(2)}</strong>
+                    </span>
+                  )}
+                  {lookup.location && <span>Location: {lookup.location}</span>}
+                  {lookup.weightKg != null && (
+                    <span>Weight: {lookup.weightKg} kg</span>
+                  )}
+                  {lookup.condition && <span>Condition: {lookup.condition}</span>}
+                  {lookup.reservePrice != null && (
+                    <span>Reserve: {lookup.reservePrice.toFixed(2)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </Field>
 
         <Field label="Iegādes summa (EUR) — opcionāli">
