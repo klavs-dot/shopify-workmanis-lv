@@ -1,0 +1,72 @@
+rules_version = '2';
+
+// Firestore rules for shopify.workmanis.lv
+// SEPARATE project from Workmanis.lv — these rules apply only here.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isMaster()    { return isSignedIn() && role() == 'MASTER'; }
+    function isAdmin()     { return isSignedIn() && role() == 'ADMIN'; }
+    function isWarehouse() { return isSignedIn() && role() == 'WAREHOUSE'; }
+    function isViewer()    { return isSignedIn() && role() == 'VIEWER'; }
+    function isStaff()     { return isMaster() || isAdmin() || isWarehouse(); }
+    function isAnyUser()   { return isMaster() || isAdmin() || isWarehouse() || isViewer(); }
+
+    // -------- Users --------
+    // Users can read their own doc (so AuthProvider can fetch role).
+    // MASTER can read/write all user docs.
+    match /users/{uid} {
+      allow read:  if isMaster() || request.auth.uid == uid;
+      allow create, update, delete: if isMaster();
+    }
+
+    // -------- Pallets --------
+    match /pallets/{palletId} {
+      allow read:   if isAnyUser();
+      allow create, update: if isMaster() || isAdmin();
+      allow delete: if isMaster();
+    }
+
+    // -------- Products --------
+    // Staff can read.
+    // ADMIN + MASTER can create / fully update / delete.
+    // WAREHOUSE can update only operational fields (status, condition, images).
+    match /products/{productId} {
+      allow read:   if isAnyUser();
+      allow create: if isMaster() || isAdmin();
+      allow delete: if isMaster();
+      allow update: if
+        isMaster() || isAdmin()
+        || (isWarehouse()
+            && request.resource.data.diff(resource.data).changedKeys()
+                .hasOnly([
+                  'warehouseStatus',
+                  'condition',
+                  'images',
+                  'updatedAt'
+                ]));
+    }
+
+    // -------- Audit logs --------
+    // Append-only by signed-in users; only MASTER can read.
+    match /auditLogs/{logId} {
+      allow read:   if isMaster();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // -------- Shopify connections (future) --------
+    match /shopifyConnections/{id} {
+      allow read, write: if isMaster() || isAdmin();
+    }
+  }
+}

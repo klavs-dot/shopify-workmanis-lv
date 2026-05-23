@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Firebase Storage rules for shopify.workmanis.lv
+// Product images live under products/{productId}/...
+// Any signed-in user can read; warehouse staff and above can upload.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isStaff() {
+      return isSignedIn() && (role() == 'MASTER' || role() == 'ADMIN' || role() == 'WAREHOUSE');
+    }
+
+    match /products/{productId}/{allPaths=**} {
+      allow read:  if isSignedIn();
+      allow write: if isStaff()
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
