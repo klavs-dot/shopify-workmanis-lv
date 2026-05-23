@@ -15,8 +15,10 @@ import {
 
 import { firebaseDb } from "@/lib/firebase";
 import { computePricing } from "@/lib/pricing";
+import { normalizeCondition } from "@/lib/manifest";
 import type {
   ApprovalStatus,
+  ListingStatus,
   ParsedManifestRow,
   Product,
   ProductCondition,
@@ -27,6 +29,7 @@ export async function listProducts(opts?: {
   palletId?: string;
   approvalStatus?: ApprovalStatus;
   warehouseStatus?: WarehouseStatus;
+  listingStatus?: ListingStatus;
   limitTo?: number;
 }): Promise<Product[]> {
   if (!firebaseDb) return [];
@@ -34,6 +37,7 @@ export async function listProducts(opts?: {
   if (opts?.palletId) filters.push(where("palletId", "==", opts.palletId));
   if (opts?.approvalStatus) filters.push(where("approvalStatus", "==", opts.approvalStatus));
   if (opts?.warehouseStatus) filters.push(where("warehouseStatus", "==", opts.warehouseStatus));
+  if (opts?.listingStatus) filters.push(where("listingStatus", "==", opts.listingStatus));
 
   const constraints = [
     ...filters,
@@ -52,64 +56,79 @@ export async function getProduct(id: string): Promise<Product | null> {
   return { id, ...(snap.data() as Omit<Product, "id">) };
 }
 
+function buildProductDoc(palletId: string, row: ParsedManifestRow) {
+  const cond: ProductCondition = normalizeCondition(row.conditionRaw);
+  const pricing = computePricing({
+    referencePrice: row.referencePrice,
+    condition: cond,
+  });
+  return {
+    palletId,
+    productSku: row.productSku,
+    manifestSku: row.manifestSku,
+    title: row.title,
+    description: row.description,
+    asin: row.asin,
+    ean: row.ean,
+    barcode: row.barcode,
+    brand: row.brand,
+    categoryName: row.categoryName,
+    subCategoryName: row.subCategoryName,
+    itemQty: row.itemQty,
+    stockQty: row.stockQty,
+    weightKg: row.weightKg,
+    grade: row.grade,
+    referencePrice: row.referencePrice,
+    referenceCurrency: row.referenceCurrency,
+    marketPrice: null,
+    suggestedPrice: pricing.suggestedPrice,
+    finalPrice: pricing.suggestedPrice,
+    listingDiscountPercent: 50,
+    customerNote: null,
+    condition: cond,
+    importStatus: "imported",
+    aiStatus: "not_started",
+    approvalStatus: "draft",
+    warehouseStatus: "not_checked",
+    listingStatus: "not_listed" satisfies ListingStatus,
+    disposalReason: null,
+    manifestImages: row.manifestImages,
+    enrichedImages: [],
+    images: row.manifestImages,
+    sourceUrls: [],
+    confidenceScore: null,
+    recommendedAction: pricing.recommendedAction,
+    enrichedTitle: null,
+    descriptionLv: null,
+    descriptionEn: null,
+    soldPrice: null,
+    soldAt: null,
+    shopifyProductId: null,
+    shopifyVariantId: null,
+    shopifyStatus: "not_synced",
+    publishedAt: null,
+    syncError: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
 export async function bulkInsertProductsForPallet(
   palletId: string,
-  rows: ParsedManifestRow[],
-  defaults?: { condition?: ProductCondition }
+  rows: ParsedManifestRow[]
 ): Promise<{ inserted: number }> {
   if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
   if (rows.length === 0) return { inserted: 0 };
 
-  // Firestore batches max 500 ops; chunk accordingly.
   const CHUNK = 400;
   let inserted = 0;
-  const cond: ProductCondition = defaults?.condition ?? "brand_new";
 
   for (let i = 0; i < rows.length; i += CHUNK) {
     const slice = rows.slice(i, i + CHUNK);
     const batch = writeBatch(firebaseDb);
     for (const row of slice) {
-      const pricing = computePricing({
-        referencePrice: row.referencePrice,
-        condition: cond,
-      });
       const ref = doc(collection(firebaseDb, "products"));
-      batch.set(ref, {
-        palletId,
-        productSku: row.productSku,
-        manifestSku: row.manifestSku,
-        title: row.title,
-        description: row.description,
-        asin: row.asin,
-        ean: row.ean,
-        barcode: row.barcode,
-        brand: row.brand,
-        categoryName: row.categoryName,
-        subCategoryName: row.subCategoryName,
-        itemQty: row.itemQty,
-        stockQty: row.stockQty,
-        referencePrice: row.referencePrice,
-        referenceCurrency: row.referenceCurrency,
-        marketPrice: null,
-        suggestedPrice: pricing.suggestedPrice,
-        finalPrice: pricing.suggestedPrice,
-        condition: cond,
-        importStatus: "imported",
-        aiStatus: "not_started",
-        approvalStatus: "draft",
-        warehouseStatus: "not_checked",
-        images: [],
-        sourceUrls: [],
-        confidenceScore: null,
-        recommendedAction: pricing.recommendedAction,
-        shopifyProductId: null,
-        shopifyVariantId: null,
-        shopifyStatus: "not_synced",
-        publishedAt: null,
-        syncError: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      batch.set(ref, buildProductDoc(palletId, row));
       inserted += 1;
     }
     await batch.commit();
@@ -124,9 +143,19 @@ export interface UpdateProductInput {
   condition?: ProductCondition;
   marketPrice?: number | null;
   finalPrice?: number | null;
+  listingDiscountPercent?: number;
+  customerNote?: string | null;
   approvalStatus?: ApprovalStatus;
   warehouseStatus?: WarehouseStatus;
+  listingStatus?: ListingStatus;
+  disposalReason?: string | null;
+  soldPrice?: number | null;
+  soldAt?: ReturnType<typeof serverTimestamp> | null;
   images?: string[];
+  enrichedImages?: string[];
+  enrichedTitle?: string | null;
+  descriptionLv?: string | null;
+  descriptionEn?: string | null;
 }
 
 export async function updateProduct(id: string, patch: UpdateProductInput): Promise<void> {
@@ -137,61 +166,32 @@ export async function updateProduct(id: string, patch: UpdateProductInput): Prom
   });
 }
 
-export async function recomputeAndSavePricing(product: Product): Promise<void> {
-  const pricing = computePricing({
-    referencePrice: product.referencePrice,
-    marketPrice: product.marketPrice ?? null,
-    condition: product.condition,
-  });
-  await updateProduct(product.id, {
-    finalPrice: pricing.suggestedPrice,
-  });
-}
-
 export async function createSingleProduct(
   palletId: string,
   row: ParsedManifestRow
 ): Promise<string> {
   if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
-  const pricing = computePricing({
-    referencePrice: row.referencePrice,
-    condition: "brand_new",
-  });
-  const ref = await addDoc(collection(firebaseDb, "products"), {
-    palletId,
-    productSku: row.productSku,
-    manifestSku: row.manifestSku,
-    title: row.title,
-    description: row.description,
-    asin: row.asin,
-    ean: row.ean,
-    barcode: row.barcode,
-    brand: row.brand,
-    categoryName: row.categoryName,
-    subCategoryName: row.subCategoryName,
-    itemQty: row.itemQty,
-    stockQty: row.stockQty,
-    referencePrice: row.referencePrice,
-    referenceCurrency: row.referenceCurrency,
-    marketPrice: null,
-    suggestedPrice: pricing.suggestedPrice,
-    finalPrice: pricing.suggestedPrice,
-    condition: "brand_new",
-    importStatus: "imported",
-    aiStatus: "not_started",
-    approvalStatus: "draft",
-    warehouseStatus: "not_checked",
-    images: [],
-    sourceUrls: [],
-    confidenceScore: null,
-    recommendedAction: pricing.recommendedAction,
-    shopifyProductId: null,
-    shopifyVariantId: null,
-    shopifyStatus: "not_synced",
-    publishedAt: null,
-    syncError: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const ref = await addDoc(collection(firebaseDb, "products"), buildProductDoc(palletId, row));
   return ref.id;
+}
+
+export async function markProductDisposed(
+  id: string,
+  reason: string | null
+): Promise<void> {
+  await updateProduct(id, {
+    listingStatus: "disposed",
+    disposalReason: reason,
+  });
+}
+
+export async function markProductSold(
+  id: string,
+  soldPrice: number | null
+): Promise<void> {
+  await updateProduct(id, {
+    listingStatus: "sold",
+    soldPrice,
+    soldAt: serverTimestamp(),
+  });
 }

@@ -35,6 +35,12 @@ export interface CreatePalletInput {
   totalProducts: number;
   totalReferencePrice: number;
   currency: string;
+  jobalotsUrl: string | null;
+  purchasePrice: number | null;
+  reservePrice: number | null;
+  location: string | null;
+  weightKg: number | null;
+  palletCondition: string | null;
   createdBy: string;
 }
 
@@ -49,10 +55,25 @@ export async function createPallet(input: CreatePalletInput): Promise<string> {
   return ref.id;
 }
 
-export async function updatePalletStatus(id: string, status: PalletStatus): Promise<void> {
+export interface UpdatePalletInput {
+  name?: string;
+  status?: PalletStatus;
+  jobalotsUrl?: string | null;
+  purchasePrice?: number | null;
+  reservePrice?: number | null;
+  location?: string | null;
+  weightKg?: number | null;
+  palletCondition?: string | null;
+}
+
+export async function updatePallet(id: string, patch: UpdatePalletInput): Promise<void> {
   if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
   await updateDoc(doc(firebaseDb, "pallets", id), {
-    status,
+    ...patch,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function updatePalletStatus(id: string, status: PalletStatus): Promise<void> {
+  await updatePallet(id, { status });
 }

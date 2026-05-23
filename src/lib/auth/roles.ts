@@ -6,20 +6,28 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
   MASTER: [/.*/], // everything
   ADMIN: [
     /^\/dashboard/,
-    /^\/import/,
-    /^\/pallets/,
+    /^\/manifesti/,
+    /^\/skirosana/,
     /^\/products/,
+    /^\/utilizetas/,
     /^\/approval/,
     /^\/settings\/profile/,
   ],
   WAREHOUSE: [
     /^\/dashboard/,
-    /^\/pallets/,
+    /^\/skirosana/,
     /^\/products/,
+    /^\/utilizetas/,
     /^\/approval/,
     /^\/settings\/profile/,
   ],
-  VIEWER: [/^\/dashboard/, /^\/pallets/, /^\/products/, /^\/settings\/profile/],
+  VIEWER: [
+    /^\/dashboard/,
+    /^\/skirosana/,
+    /^\/products/,
+    /^\/utilizetas/,
+    /^\/settings\/profile/,
+  ],
 };
 
 export function canAccessPath(role: UserRole, pathname: string): boolean {

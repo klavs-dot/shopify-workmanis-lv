@@ -182,7 +182,7 @@ function ProductDetail({ id }: { id: string }) {
           </div>
         </div>
         <Link
-          href={`/pallets/${product.palletId}`}
+          href={`/skirosana/${product.palletId}`}
           className="text-xs text-slate-500 underline-offset-2 hover:underline"
         >
           ← Atpakaļ uz paleti
@@ -204,7 +204,24 @@ function ProductDetail({ id }: { id: string }) {
               <Dt>Barcode</Dt><Dd mono>{product.barcode || "—"}</Dd>
               <Dt>Item qty</Dt><Dd>{product.itemQty}</Dd>
               <Dt>Stock qty</Dt><Dd>{product.stockQty}</Dd>
+              <Dt>Weight (kg)</Dt><Dd>{product.weightKg ?? "—"}</Dd>
+              <Dt>Grade</Dt><Dd>{product.grade ?? "—"}</Dd>
             </dl>
+
+            {product.images.length > 0 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto">
+                {product.images.slice(0, 6).map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="h-20 w-20 shrink-0 rounded object-cover ring-1 ring-slate-200"
+                  />
+                ))}
+              </div>
+            )}
             {product.description && (
               <div className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
                 {product.description}

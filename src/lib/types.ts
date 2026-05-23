@@ -41,8 +41,28 @@ export interface Pallet {
   source: string;
   originalFileName: string;
   totalProducts: number;
+
+  /** Sum of unit RRP × quantity across all rows (gross retail value). */
   totalReferencePrice: number;
   currency: string;
+
+  /** Public Jobalots auction URL pasted by the user at upload time. */
+  jobalotsUrl: string | null;
+
+  /** What the user actually paid for the pallet at auction (EUR usually).
+   *  Auto-filled from Jobalots URL when possible, else manually entered. */
+  purchasePrice: number | null;
+
+  /** Auction reserve price, informational only. */
+  reservePrice: number | null;
+
+  /** Free-text origin location, e.g. "Poland". */
+  location: string | null;
+  /** Total pallet weight in kg. */
+  weightKg: number | null;
+  /** Manifest condition, e.g. "Customer Return", "Brand New". */
+  palletCondition: string | null;
+
   status: PalletStatus;
   createdBy: string;
   createdAt: Timestamp | null;
@@ -68,6 +88,25 @@ export type ApprovalStatus =
   | "bundle"
   | "outlet"
   | "do_not_publish";
+
+/** Lifecycle status — manually tracked until Shopify webhook integration
+ *  (Posms 6). Tells us where each product is right now. */
+export type ListingStatus =
+  | "not_listed"        // not yet in store
+  | "listing_approved"  // approved by warehouse/admin, awaiting publish
+  | "listed_in_store"   // pushed to Shopify (or marked as listed manually)
+  | "sold"              // marked as sold
+  | "out_of_stock"      // listed but inventory hit zero (e.g. only one sold)
+  | "disposed";         // marked damaged / disposable, moved to Utilizētās preces
+
+export const LISTING_STATUS_LABEL: Record<ListingStatus, string> = {
+  not_listed: "Nav veikalā",
+  listing_approved: "Apstiprināts publicēšanai",
+  listed_in_store: "Veikalā",
+  sold: "Pārdots",
+  out_of_stock: "Nav noliktavā",
+  disposed: "Utilizēts",
+};
 
 export type WarehouseStatus =
   | "not_checked"
@@ -115,11 +154,24 @@ export interface Product {
   itemQty: number;
   stockQty: number;
 
+  /** Per-unit weight from manifest (kg), when provided. */
+  weightKg: number | null;
+  /** Free-text grade from manifest (e.g. "A", "B"). */
+  grade: string | null;
+
   referencePrice: number;
   referenceCurrency: string;
   marketPrice: number | null;
   suggestedPrice: number | null;
   finalPrice: number | null;
+
+  /** Default discount applied at listing time (0–99). UI shows two quick
+   *  presets (50 / 75) and a free slider. */
+  listingDiscountPercent: number;
+
+  /** Free-text note shown above the Shopify product description as a red
+   *  banner, e.g. "Piezīme!! Precei bojāts korpuss". */
+  customerNote: string | null;
 
   condition: ProductCondition;
 
@@ -127,11 +179,32 @@ export interface Product {
   aiStatus: AiStatus;
   approvalStatus: ApprovalStatus;
   warehouseStatus: WarehouseStatus;
+  /** Manual lifecycle marker — pre-Shopify-webhook integration. */
+  listingStatus: ListingStatus;
+  /** Reason recorded when listingStatus moves to "disposed". */
+  disposalReason: string | null;
 
+  /** Original manifest images (Jobalots S3, etc.). Up to 6 from Excel. */
+  manifestImages: string[];
+  /** AI-enriched / scraped images from Amazon, manufacturer, etc. */
+  enrichedImages: string[];
+  /** Effective images list used by the UI — by default manifest + enriched,
+   *  user can override per product. */
   images: string[];
+
   sourceUrls: string[];
   confidenceScore: number | null;
   recommendedAction: RecommendedAction | null;
+
+  /** AI-cleaned title and translated descriptions (filled by Posms 5). */
+  enrichedTitle: string | null;
+  descriptionLv: string | null;
+  descriptionEn: string | null;
+
+  /** Optional record of what the product was actually sold for (manual entry
+   *  until Shopify webhook integration). Used for "ietirgots XX EUR". */
+  soldPrice: number | null;
+  soldAt: Timestamp | null;
 
   // Reserved for future Shopify integration
   shopifyProductId: string | null;
@@ -154,6 +227,7 @@ export type AuditAction =
   | "role_changed"
   | "manifest_imported"
   | "pallet_created"
+  | "pallet_jobalots_synced"
   | "product_created"
   | "product_approved"
   | "product_rejected"
@@ -161,8 +235,16 @@ export type AuditAction =
   | "product_sent_to_outlet"
   | "product_marked_missing"
   | "product_marked_damaged"
+  | "product_marked_disposed"
+  | "product_listing_approved"
+  | "product_listed_in_store"
+  | "product_marked_sold"
+  | "product_customer_note_set"
+  | "product_discount_changed"
   | "price_changed"
   | "warehouse_status_changed"
+  | "ai_enrichment_started"
+  | "ai_enrichment_completed"
   | "image_added"
   | "login";
 
@@ -213,8 +295,14 @@ export interface ParsedManifestRow {
   subCategoryName: string;
   itemQty: number;
   stockQty: number;
+  weightKg: number | null;
+  grade: string | null;
+  conditionRaw: string | null;
   referencePrice: number;
+  totalPrice: number;
   referenceCurrency: string;
+  /** Image URLs from Image 1..Image 6 columns (only present if non-empty). */
+  manifestImages: string[];
   raw: Record<string, unknown>;
 }
 

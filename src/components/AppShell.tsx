@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Upload,
+  FileSpreadsheet,
   Package,
-  Boxes,
+  Layers,
   CheckSquare,
+  Trash2,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
@@ -30,19 +31,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const items: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     {
-      href: "/import",
-      label: "Import",
-      icon: Upload,
+      href: "/manifesti",
+      label: "Manifesti",
+      icon: FileSpreadsheet,
       visible: () => hasPermission(appUser?.role, "importManifest"),
     },
-    { href: "/pallets", label: "Paletes", icon: Boxes },
+    { href: "/skirosana", label: "Šķirošana", icon: Layers },
     { href: "/products", label: "Produkti", icon: Package },
     {
       href: "/approval",
       label: "Approval",
       icon: CheckSquare,
-      visible: () => hasPermission(appUser?.role, "approveProducts") || appUser?.role === "WAREHOUSE",
+      visible: () =>
+        hasPermission(appUser?.role, "approveProducts") || appUser?.role === "WAREHOUSE",
     },
+    { href: "/utilizetas", label: "Utilizētās preces", icon: Trash2 },
   ];
 
   const visibleItems = items.filter((i) => (i.visible ? i.visible() : true));
