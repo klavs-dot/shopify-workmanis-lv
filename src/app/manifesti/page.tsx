@@ -571,7 +571,17 @@ function buildCardData(pallet: Pallet, products: Product[]): ManifestCardData {
 
 function ManifestCard({ data }: { data: ManifestCardData }) {
   const { pallet } = data;
-  const predictedProfit = data.totalFinalPrice * 0.5; // 50% of selling prices
+  // Predicted profit heuristic: 50% of the planned selling-prices sum.
+  const predictedProfit = data.totalFinalPrice * 0.5;
+  // Actual realised P&L = soldRevenue − purchasePrice (when known).
+  const realisedPnL =
+    pallet.purchasePrice != null
+      ? data.soldRevenue - pallet.purchasePrice
+      : null;
+  const purchaseRecovered =
+    pallet.purchasePrice != null && pallet.purchasePrice > 0
+      ? data.soldRevenue / pallet.purchasePrice
+      : null;
   return (
     <article className="flex flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
@@ -624,6 +634,23 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
         Pārdotas <strong className="tabular">{data.soldCount}</strong> gab., ietirgots{" "}
         <strong className="tabular">{data.soldRevenue.toFixed(2)}</strong>{" "}
         {pallet.currency}
+        {realisedPnL != null && data.soldCount > 0 && (
+          <span
+            className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              realisedPnL >= 0
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-red-100 text-red-800"
+            }`}
+            title={
+              purchaseRecovered != null
+                ? `Atpelnīts ${(purchaseRecovered * 100).toFixed(0)}% no iegādes`
+                : ""
+            }
+          >
+            {realisedPnL >= 0 ? "+" : ""}
+            {realisedPnL.toFixed(2)} {pallet.currency}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5">

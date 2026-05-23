@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useMemo, useState, Suspense } from "react";
+import { Fragment, use, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
@@ -17,6 +17,7 @@ import {
   WarehouseBadge,
 } from "@/components/StatusBadge";
 import { LISTING_STATUS_LABEL } from "@/lib/types";
+import { ProductActionsPanel } from "@/components/ProductActionsPanel";
 import type {
   ApprovalStatus,
   ListingStatus,
@@ -79,6 +80,12 @@ function PalletDetail({ id }: { id: string }) {
     hasImage: "",
     listing: initialListing,
   });
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const refreshProducts = async () => {
+    const fresh = await listProducts({ palletId: id });
+    setProducts(fresh);
+  };
 
   useEffect(() => {
     (async () => {
@@ -327,70 +334,100 @@ function PalletDetail({ id }: { id: string }) {
         <table className="app-table w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wider text-slate-500">
             <tr>
+              <th className="w-8 px-2 py-2"></th>
               <th className="px-3 py-2"></th>
               <th className="px-3 py-2">Title</th>
               <th className="px-3 py-2">Brand</th>
               <th className="px-3 py-2">ASIN</th>
               <th className="px-3 py-2 text-right tabular">Ref.</th>
-              <th className="px-3 py-2 text-right tabular">Suggested</th>
               <th className="px-3 py-2 text-right tabular">Final</th>
               <th className="px-3 py-2">Listing</th>
               <th className="px-3 py-2">Warehouse</th>
-              <th className="px-3 py-2">Approval</th>
               <th className="px-3 py-2 text-right">→</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id} className="border-t border-slate-100">
-                <td className="px-3 py-2">
-                  {p.images[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.images[0]}
-                      alt=""
-                      loading="lazy"
-                      className="h-10 w-10 rounded object-cover ring-1 ring-slate-200"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-slate-100 ring-1 ring-slate-200" />
-                  )}
-                </td>
-                <td className="max-w-[260px] truncate px-3 py-2 text-slate-900">
-                  {p.title}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-600">{p.brand}</td>
-                <td className="px-3 py-2 font-mono text-[10px] text-slate-500">
-                  {p.asin}
-                </td>
-                <td className="px-3 py-2 text-right tabular text-xs">
-                  {p.referencePrice.toFixed(2)}
-                </td>
-                <td className="px-3 py-2 text-right tabular text-xs">
-                  {p.suggestedPrice?.toFixed(2) ?? "—"}
-                </td>
-                <td className="px-3 py-2 text-right tabular text-xs font-medium">
-                  {p.finalPrice?.toFixed(2) ?? "—"}
-                </td>
-                <td className="px-3 py-2 text-xs text-slate-700">
-                  {LISTING_STATUS_LABEL[p.listingStatus]}
-                </td>
-                <td className="px-3 py-2">
-                  <WarehouseBadge status={p.warehouseStatus} />
-                </td>
-                <td className="px-3 py-2">
-                  <ApprovalBadge status={p.approvalStatus} />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <Link
-                    href={`/products/${p.id}`}
-                    className="text-xs text-slate-900 underline-offset-2 hover:underline"
+            {filtered.map((p) => {
+              const isOpen = expandedId === p.id;
+              return (
+                <Fragment key={p.id}>
+                  <tr
+                    onClick={() => setExpandedId(isOpen ? null : p.id)}
+                    className={`cursor-pointer border-t border-slate-100 ${
+                      isOpen ? "bg-slate-50" : ""
+                    }`}
                   >
-                    Atvērt
-                  </Link>
-                </td>
-              </tr>
-            ))}
+                    <td className="px-2 py-2 text-slate-400">{isOpen ? "▼" : "▶"}</td>
+                    <td className="px-3 py-2">
+                      {p.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.images[0]}
+                          alt=""
+                          loading="lazy"
+                          className="h-10 w-10 rounded object-cover ring-1 ring-slate-200"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-slate-100 ring-1 ring-slate-200" />
+                      )}
+                    </td>
+                    <td className="max-w-[260px] truncate px-3 py-2 text-slate-900">
+                      {p.title}
+                      {p.customerNote && (
+                        <span
+                          title={p.customerNote}
+                          className="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0 text-[9px] font-semibold uppercase text-red-800"
+                        >
+                          Piezīme
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600">{p.brand}</td>
+                    <td className="px-3 py-2 font-mono text-[10px] text-slate-500">
+                      {p.asin}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular text-xs">
+                      {p.referencePrice.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular text-xs font-medium">
+                      {p.finalPrice?.toFixed(2) ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-700">
+                      {LISTING_STATUS_LABEL[p.listingStatus]}
+                      {p.listingDiscountPercent > 0 && p.listingStatus !== "disposed" && (
+                        <span className="ml-1 text-[10px] text-slate-500">
+                          (−{p.listingDiscountPercent}%)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <WarehouseBadge status={p.warehouseStatus} />
+                    </td>
+                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={`/products/${p.id}`}
+                        className="text-xs text-slate-900 underline-offset-2 hover:underline"
+                      >
+                        Atvērt
+                      </Link>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="border-t border-slate-100 bg-slate-50">
+                      <td colSpan={10} className="px-3 py-3">
+                        <ProductActionsPanel
+                          product={p}
+                          onChanged={() => {
+                            void refreshProducts();
+                          }}
+                          onCancel={() => setExpandedId(null)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
