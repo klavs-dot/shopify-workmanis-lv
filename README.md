@@ -37,9 +37,34 @@ Next.js + Firebase aplikācija palešu biznesam:
 
 ## Lokālā palaišana
 
+### A. Ātrais demo režīms (Firebase emulatori — bez konsoles)
+
+Prasība: Java 21+ (`brew install openjdk@21`).
+
 ```bash
 npm install
-cp .env.example .env.local        # aizpildi Firebase vērtības
+npm run demo:env                  # uzraksta .env.local ar emulator placeholderiem
+npm run emulators                 # 1. terminālī
+npm run seed:emulator             # 2. terminālī (kad emulators ir ready)
+npm run dev                       # 3. terminālī
+```
+
+Atver `http://localhost:3000/login` un ielogojies:
+
+| E-pasts                  | Parole       | Loma       |
+| ------------------------ | ------------ | ---------- |
+| `master@demo.local`      | `Demo1234!`  | MASTER (redz `/masteradmin`) |
+| `admin@demo.local`       | `Demo1234!`  | ADMIN |
+| `warehouse@demo.local`   | `Demo1234!`  | WAREHOUSE |
+| `viewer@demo.local`      | `Demo1234!`  | VIEWER |
+
+Detaļas: [docs/obsidian/11_Emulator_Demo.md](docs/obsidian/11_Emulator_Demo.md).
+
+### B. Reāls Firebase projekts
+
+```bash
+npm install
+cp .env.example .env.local        # aizpildi Firebase vērtības no Console
 npm run dev                       # http://localhost:3000
 ```
 

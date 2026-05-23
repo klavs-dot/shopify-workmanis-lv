@@ -18,3 +18,4 @@ Atver šo `docs/obsidian/` mapi kā vault Obsidian aplikācijā. Vault dzīvo ie
 9. [[08_Deployment_Vercel_Firebase]]
 10. [[09_Development_Log]]
 11. [[10_TODO]]
+12. [[11_Emulator_Demo]]

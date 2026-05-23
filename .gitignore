@@ -46,9 +46,13 @@ next-env.d.ts.bak
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+pubsub-debug.log
+storage-debug.log
 .firebase/
 firebase-service-account*.json
 serviceAccountKey*.json
+# emulator exports/imports
+.firebase-emulator-data/
 
 # editor / OS / agent
 .idea/

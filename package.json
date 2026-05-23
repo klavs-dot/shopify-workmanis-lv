@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed:master": "tsx scripts/seed-master.ts"
+    "seed:master": "tsx scripts/seed-master.ts",
+    "emulators": "PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH firebase emulators:start --project shopify-workmanis-demo --only auth,firestore,storage,ui",
+    "seed:emulator": "tsx scripts/seed-emulator.ts",
+    "demo:env": "tsx scripts/write-demo-env.ts"
   },
   "dependencies": {
     "firebase": "^11.1.0",
@@ -28,6 +31,7 @@
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.5.18",
     "firebase-admin": "^13.0.2",
+    "firebase-tools": "^15.18.0",
     "postcss": "^8.5.1",
     "tailwindcss": "^4.0.0-beta.7",
     "tsx": "^4.19.2",
