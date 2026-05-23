@@ -1,0 +1,36 @@
+{
+  "name": "shopify-workmanis-lv",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI warehouse and manifest processing system for pallet/liquidation business. SEPARATE project from Workmanis.lv. Subdomain only.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "seed:master": "tsx scripts/seed-master.ts"
+  },
+  "dependencies": {
+    "firebase": "^11.1.0",
+    "lucide-react": "^0.460.0",
+    "next": "15.1.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0-beta.7",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.1.3",
+    "firebase-admin": "^13.0.2",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^4.0.0-beta.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
