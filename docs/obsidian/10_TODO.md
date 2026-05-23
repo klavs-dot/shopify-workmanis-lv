@@ -12,9 +12,9 @@
 - [ ] Iegūt service-account JSON un saglabāt ārpus repo
 - [ ] `npm run seed:master` lai izveidotu pirmo MASTER lietotāju
 - [ ] `firebase deploy --only firestore:rules,firestore:indexes,storage`
-- [ ] `vercel link` jaunam projektam `shopify-workmanis-lv`
-- [ ] `vercel env add` visiem `NEXT_PUBLIC_FIREBASE_*` un service-account-related
-- [ ] `vercel --prod` pirmais deploy
+- [x] ~~`vercel link` jaunam projektam `shopify-workmanis-lv`~~ ✅ izdarīts
+- [x] ~~`vercel --prod` pirmais deploy~~ ✅ izdarīts — https://shopify-workmanis-lv.vercel.app
+- [ ] `vercel env add` visiem `NEXT_PUBLIC_FIREBASE_*` un service-account-related, tad redeploy
 - [ ] Pievienot `shopify.workmanis.lv` DNS uz Vercel
 
 ## Vidēja prioritāte

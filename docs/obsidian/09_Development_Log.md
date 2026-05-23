@@ -38,9 +38,19 @@
 - TypeScript strict check tīrs (`npm run typecheck`)
 - Production build sekmīgs — 16 maršruti (`npm run build`)
 
+**Veikts (otrais piegājiens — git + cloud):**
+
+- Git init uz `main` zarā, 7 loģiski commits, push uz GitHub
+- Publisks GitHub repo: https://github.com/klavs-dot/shopify-workmanis-lv
+- Vercel projekta `shopify-workmanis-lv` izveide (atsevišķi no eksistējošā `workmanis` projekta!)
+- Vercel auto-savienojums ar GitHub repo (push uz `main` triggerēs deploy)
+- Bump Next.js → 15.5.18 (15.1.3 noraidīts kā vulnerable)
+- Pirmais production deploy READY: https://shopify-workmanis-lv.vercel.app
+- HTTP 200 verificēts uz `/login` (rāda "Firebase not configured" baneri, kā gaidīts)
+
 **Atliek (skat [[10_TODO]]):**
 
-- Reāla Firebase projekta izveide un `.env.local` aizpilde
+- Reāla Firebase projekta izveide un `.env.local` + Vercel ENV aizpilde
 - Production-safe service-account ielāde Vercelā (`FIREBASE_SERVICE_ACCOUNT_JSON`)
 - `shopify.workmanis.lv` domēna pievienošana Vercelā
 - Pilna AI un Shopify integrācija
