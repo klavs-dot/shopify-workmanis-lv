@@ -37,7 +37,7 @@ Tikai DNS — `shopify.workmanis.lv` ir subdomēns, kas norādīs uz šo Vercel 
 - [[03_Authentication_And_Roles]]
 - [[04_Manifest_Import]]
 - [[05_Pricing_Engine]]
-- [[06_AI_Enrichment_Future]]
+- [[06_AI_Enrichment]]
 - [[07_Shopify_Integration_Future]]
 - [[08_Deployment_Vercel_Firebase]]
 - [[09_Development_Log]]
