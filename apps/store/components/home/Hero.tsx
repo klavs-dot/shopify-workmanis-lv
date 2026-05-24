@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
@@ -27,19 +27,31 @@ const QA: Array<{ q: string; a: string }> = [
   },
 ];
 
-// How long the "..." typing indicator stays before the answer pops in.
-// Short enough that the user doesn't get bored, long enough to register as
-// "the brand is composing a reply".
-const TYPING_MS = 500;
+// Typing indicator (".. .") duration before the brand starts "writing".
+const TYPING_MS = 1000;
+
+// Word-by-word reveal cadence — how many ms between each word appearing.
+// 80 ms feels like a fast natural typist.
+const WORD_MS = 80;
 
 export function Hero() {
-  // How many answers have been fully revealed.
+  // How many answers are FULLY revealed (all words shown).
   const [answered, setAnswered] = useState(0);
-  // True while we're showing the typing indicator for the NEXT answer
-  // (i.e. answer at index `answered` is being "typed"). Goes false when
-  // we flip it to revealed.
+  // True while showing the "..." typing indicator (before the first word).
   const [typing, setTyping] = useState(false);
+  // null = no word-by-word reveal in progress. Number = how many words of
+  // the answer at index `answered` are currently visible.
+  const [wordsShown, setWordsShown] = useState<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const timersRef = useRef<number[]>([]);
+
+  // Clean up any pending timers if the component unmounts mid-reveal.
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((t) => window.clearTimeout(t));
+      timersRef.current = [];
+    };
+  }, []);
 
   const playPop = () => {
     try {
@@ -80,17 +92,46 @@ export function Hero() {
     }
   };
 
+  /** Schedule a timeout and remember its id for cleanup. */
+  const schedule = (fn: () => void, delay: number) => {
+    const id = window.setTimeout(fn, delay);
+    timersRef.current.push(id);
+    return id;
+  };
+
   const reveal = () => {
-    if (typing) return; // ignore double clicks while composing
+    if (typing || wordsShown != null) return; // ignore mid-flight clicks
     setTyping(true);
-    window.setTimeout(() => {
-      setAnswered((n) => Math.min(n + 1, QA.length));
+
+    schedule(() => {
       setTyping(false);
       playPop();
+      // Begin word-by-word reveal of the next answer.
+      const text = QA[answered]?.a ?? "";
+      const totalWords = text.split(/\s+/).filter(Boolean).length;
+      if (totalWords === 0) {
+        // No text — just mark as answered.
+        setAnswered((n) => Math.min(n + 1, QA.length));
+        return;
+      }
+      setWordsShown(1);
+      let next = 2;
+      const tick = () => {
+        if (next > totalWords) {
+          setWordsShown(null);
+          setAnswered((n) => Math.min(n + 1, QA.length));
+          return;
+        }
+        setWordsShown(next);
+        next += 1;
+        schedule(tick, WORD_MS);
+      };
+      schedule(tick, WORD_MS);
     }, TYPING_MS);
   };
 
-  const allDone = answered >= QA.length && !typing;
+  const allDone = answered >= QA.length && !typing && wordsShown == null;
+  const isComposing = typing || wordsShown != null;
 
   return (
     <section className="relative isolate overflow-hidden bg-neutral-900 text-white">
@@ -114,11 +155,20 @@ export function Hero() {
         <div className="mx-auto w-full max-w-2xl space-y-4 md:space-y-5">
           {QA.map((pair, i) => {
             const showQuestion = i <= answered;
-            const showAnswer = i < answered;
-            // Typing bubble belongs to the answer that's about to appear —
-            // i.e. the one at index `answered`, while `typing` is true.
+            // Already-revealed answers above the current "active" one.
+            const showFullAnswer = i < answered;
+            // Typing bubble belongs to the answer that's about to start.
             const showTyping = typing && i === answered;
+            // Partial answer — word-by-word reveal in progress.
+            const showPartial = wordsShown != null && i === answered;
             if (!showQuestion) return null;
+
+            // Partial answer text — first `wordsShown` words of QA[i].a.
+            const partialText =
+              showPartial && wordsShown
+                ? pair.a.split(/\s+/).slice(0, wordsShown).join(" ")
+                : "";
+
             return (
               <div key={i} className="space-y-3 md:space-y-4">
                 {/* Customer question — left */}
@@ -149,8 +199,25 @@ export function Hero() {
                   </div>
                 )}
 
-                {/* Brand answer — right, with pop animation */}
-                {showAnswer && (
+                {/* Partial answer — bubble grows as words are added.
+                 *  No max-w-* here on purpose: the bubble must hug the
+                 *  current word count so it visibly expands word-by-word. */}
+                {showPartial && (
+                  <div
+                    className="bubble-in flex items-end justify-end gap-2.5 md:gap-3"
+                    aria-live="polite"
+                  >
+                    <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-blue-500 px-5 py-3 text-base text-white shadow-xl md:px-6 md:py-4 md:text-lg">
+                      {partialText}
+                    </div>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-bold uppercase text-white md:h-12 md:w-12 md:text-sm">
+                      14D
+                    </div>
+                  </div>
+                )}
+
+                {/* Fully revealed answer */}
+                {showFullAnswer && (
                   <div className="bubble-in flex items-end justify-end gap-2.5 md:gap-3">
                     <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-blue-500 px-5 py-3 text-base text-white shadow-xl md:px-6 md:py-4 md:text-lg">
                       {pair.a}
@@ -165,8 +232,8 @@ export function Hero() {
           })}
 
           {/* Reveal button — visible while there are pending answers and we
-           *  are not currently typing the previous one. */}
-          {!allDone && !typing && (
+           *  are not currently typing or composing the previous one. */}
+          {!allDone && !isComposing && (
             <div className="bubble-in flex justify-start pl-[3.25rem] md:pl-[3.75rem]">
               <button
                 type="button"
