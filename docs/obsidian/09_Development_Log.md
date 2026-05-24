@@ -2,6 +2,34 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Shipment tracking ar mirgojošo brīdinājumu (>3d)
+
+Skat pilnu aprakstu: [[18_Shipment_Tracking]].
+
+**Datu modelis:**
+- `Product +2` lauki: `shippedAt`, `shippedByUid`.
+- `AuditAction +1`: `product_marked_shipped`.
+
+**Firestore rules:** Warehouse var update `shippedAt + shippedByUid`.
+
+**ProductActionsPanel:** jauna sadaļa "Klienta sūtījums" parādās tikai kad `listingStatus = sold` — zila kaste ar 📦 pogu vai zaļa kaste ar izsūtīšanas datumu.
+
+**warehouseStats helper paplašināts:**
+- `unshippedCount`, `unshippedValue`, `oldestUnshippedDays`, `hasOverdueShipment`.
+- `SHIPMENT_OVERDUE_DAYS = 3` konstante.
+- `pendingShipments()` un `daysSinceSold()` helper funkcijas.
+- Pending sūtījumi NETIEK datuma-filtrēti — vienmēr aktuālais stāvoklis.
+
+**Admin/Master dashboard darbinieku kartēs:**
+- Jaunās rindas: "Klienti nopirkuši: XX gab. · XX €" un "Nav izsūtīts: XX gab. · XX € (vec. Xd)".
+- Kartes border + mirgojošs "⚠ Xd kavēts" badge, ja kāds sūtījums >3d vecs.
+
+**Warehouse dashboard:**
+- Jauns "Klientiem jāizsūta" bloks AUGŠĀ ar produktu tabulu (bilde, nosaukums, soldAt + "Pirms X d.", cena, "📦 Izsūtīts" poga).
+- Ja kāds >3d — border sarkans + "KAVĒTS!" mirgojošs badge.
+
+**CSS:** jauna `.shipment-overdue` keyframe animācija (background-color + scale + box-shadow pulse), `prefers-reduced-motion` ievērots.
+
 ## 2026-05-24 — Noliktavas darbinieki sadaļa + dashboard ar 4 robotiem + manifest assignment
 
 Pilns aprakts: [[17_Warehouse_Workers]].

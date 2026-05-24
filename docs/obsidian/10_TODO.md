@@ -38,6 +38,7 @@
 - [x] Loģistika auto-claim, kad palete saņemta un piešķirta
 - [x] Manifesta kartītes — izņemta plānoto cenu summa, "Šķirotavā" vietā "Nav veikalā", piešķirtais darbinieks redzams
 - [x] Admin/Master dashboard ar 4 animētiem robotiem (Investment/Sold/InStore/Disposed) + datuma filtrs + darbinieku kartītes
+- [x] Shipment tracking (`shippedAt` + `shippedByUid`) ar mirgojošo brīdinājumu, ja sūtījums nav izsūtīts ilgāk par 3 dienām ([[18_Shipment_Tracking]])
 
 ## Augsta prioritāte (nākamais Shopify push)
 
