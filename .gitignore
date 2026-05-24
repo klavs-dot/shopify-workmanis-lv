@@ -8,12 +8,19 @@
 !.yarn/releases
 !.yarn/versions
 
+# monorepo: also ignore nested node_modules from apps/*
+**/node_modules
+
 # testing
 /coverage
 
 # next.js
 /.next/
 /out/
+# monorepo nested next builds
+**/.next/
+**/out/
+**/next-env.d.ts
 
 # production
 /build

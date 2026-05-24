@@ -1,86 +1,101 @@
-# shopify.workmanis.lv
+# 14D Shopify System
 
 > **Šis NAV Workmanis.lv projekts.**
-> Šī ir atsevišķa palešu / liquidation / outlet noliktavas un Shopify sagatavošanas sistēma.
-> Tā tikai izmanto subdomēnu `shopify.workmanis.lv` un nedalās ar Workmanis.lv:
->
-> - Firebase projektu
-> - GitHub repo
-> - Vercel projektu
-> - Obsidian dokumentāciju
-> - Datu bāzi
-> - Lietotāju bāzi
-> - Vidi (.env)
+> Šī ir 14D ekosistēma — palešu / liquidation / outlet noliktavas apstrādes sistēma + publiskais e-veikals. Tā tikai izmanto subdomēnu `shopify.workmanis.lv` un nedalās ar Workmanis.lv ne Firebase, ne repo, ne Vercel projektu.
 
-## Kas šajā projektā ir
+## Divas aplikācijas, viens repo
 
-Next.js + Firebase aplikācija palešu biznesam:
+```
+shopify.workmanis.lv/   ← repo nosaukums (vēsturisks)
+│
+├── (admin sistēma šobrīd dzīvo šeit, repo saknē)
+│   src/, app/, package.json, firestore.rules ...
+│   = shopify.workmanis.lv (production)
+│
+├── apps/
+│   └── store/                ← jauns!
+│       = 14d.lv publiskais e-veikals
+│
+├── docs/obsidian/                       ← admin dokumentācija (16+ failu)
+└── obsidian/
+    └── 14D-Shopify-System-Obsidian/     ← visa ekosistēma (high-level)
+```
 
-- **Import** — Excel manifesta augšupielāde (Jobalots tipa formāts).
-- **Pallets** — paletes ar agregātiem.
-- **Products** — pilna produktu datubāze ar 8 statusu domēniem.
-- **Pricing engine** — kondicionēšanas koeficienti + `.99` noapaļošana.
-- **Approval** — apstiprināšanas rinda ar Approve / Bundle / Outlet / Reject / Needs Photo / Missing.
-- **MasterAdmin** — slēptais panelis lietotāju pārvaldībai un audit log skatam.
-- **Role-based access** — MASTER / ADMIN / WAREHOUSE / VIEWER.
-- **Audit log** — visas svarīgākās darbības tiek pierakstītas.
-- **Sagatavotības** AI enrichment un Shopify Admin API integrācijai (datu lauki gatavi, integrācija sekos).
+| | **Admin** | **Store** |
+|---|---|---|
+| Domēns | `shopify.workmanis.lv` | `14d.lv` |
+| Mape | repo root (vēlāk → `apps/admin/`) | `apps/store/` |
+| Mērķis | Darbinieku/admin sistēma | Publiskais klientu e-veikals |
+| Lietotāji | MASTER, ADMIN, WAREHOUSE, VIEWER | Anonīmi apmeklētāji |
+| Backend | Firestore + Anthropic API + Shopify Admin API | Shopify Storefront API |
+| Status | LIVE production | Skeleton (2026-05-24) |
 
-## Tech stack
+> **Skaidri:** Admin un Store nedrīkst sajaukt. Admin sistēma satur iekšējās cenas, AI draft datus, darbinieku paneļus — tas viss paliek `apps/admin`. Store rāda tikai publicētus Shopify produktus.
 
-- Next.js 15 (App Router) + TypeScript strict
-- Tailwind CSS v4
-- Firebase Auth (email/password) + Firestore + Storage
-- `firebase-admin` API maršrutiem un seed skriptam
-- SheetJS (`xlsx`) Excel manifesta lasīšanai
+Pilns konteksts: [`obsidian/14D-Shopify-System-Obsidian/`](obsidian/14D-Shopify-System-Obsidian/).
+
+## Stack
+
+Abām aplikācijām kopīgs:
+- Next.js 15 (App Router) + React 19
+- TypeScript strict
+- Tailwind v4
+- Vercel deployment
+
+Admin papildus:
+- Firebase Auth + Firestore + Storage
+- Anthropic SDK (Claude Opus 4.7) — produktu bagātinājums
+- SheetJS (`xlsx`) — Excel manifestu lasīšana
 - `lucide-react` ikonām
 
-## Lokālā palaišana
+Store papildus:
+- Shopify Storefront API (drīzumā)
+- `lucide-react` ikonām
 
-### A. Ātrais demo režīms (Firebase emulatori — bez konsoles)
+## Palaišana
 
-Prasība: Java 21+ (`brew install openjdk@21`).
-
-```bash
-npm install
-npm run demo:env                  # uzraksta .env.local ar emulator placeholderiem
-npm run emulators                 # 1. terminālī
-npm run seed:emulator             # 2. terminālī (kad emulators ir ready)
-npm run dev                       # 3. terminālī
-```
-
-Atver `http://localhost:3000/login` un ielogojies:
-
-| E-pasts                  | Parole       | Loma       |
-| ------------------------ | ------------ | ---------- |
-| `master@demo.local`      | `Demo1234!`  | MASTER (redz `/masteradmin`) |
-| `admin@demo.local`       | `Demo1234!`  | ADMIN |
-| `warehouse@demo.local`   | `Demo1234!`  | WAREHOUSE |
-| `viewer@demo.local`      | `Demo1234!`  | VIEWER |
-
-Detaļas: [docs/obsidian/11_Emulator_Demo.md](docs/obsidian/11_Emulator_Demo.md).
-
-### B. Reāls Firebase projekts
+### Admin (shopify.workmanis.lv) — repo saknē
 
 ```bash
 npm install
-cp .env.example .env.local        # aizpildi Firebase vērtības no Console
-npm run dev                       # http://localhost:3000
+cp .env.example .env.local         # aizpildi Firebase vērtības
+npm run dev                        # http://localhost:3000
 ```
 
-Palīgkomandas:
+Komandas:
+```bash
+npm run typecheck
+npm run build
+npm run lint
+npm run seed:master                # pirmā MASTER lietotāja izveide
+npm run emulators                  # Firebase emulatori
+npm run seed:emulator              # demo dati emulatorā
+npm run demo:env                   # ātrais emulator setup
+```
+
+### Store (14d.lv) — `apps/store/`
 
 ```bash
-npm run typecheck                 # TypeScript strict
-npm run build                     # production build
-npm run start                     # production server
-npm run lint                      # ESLint
-npm run seed:master               # pirmā MASTER lietotāja izveide
+cd apps/store
+npm install
+cp .env.example .env.local         # Shopify vērtības (opcionāli — strādā ar mock datiem)
+npm run dev                        # http://localhost:3001
 ```
+
+Komandas (no `apps/store/`):
+```bash
+npm run typecheck
+npm run build
+npm run start
+```
+
+> Atsevišķi porti (3000 admin, 3001 store) — var palaist abus paralēli.
 
 ## ENV mainīgie
 
-Pilns saraksts ir [.env.example](.env.example). Klienta puses (publiski) Firebase config:
+### Admin (root `.env.local`)
+
+Pilns saraksts: [.env.example](.env.example).
 
 ```
 NEXT_PUBLIC_FIREBASE_API_KEY=
@@ -89,57 +104,63 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
-```
 
-Servera puses (tikai seed un API):
-
-```
-FIREBASE_SERVICE_ACCOUNT_PATH=/absolūtais/ceļš/service-account.json
+FIREBASE_SERVICE_ACCOUNT_PATH=/abs/path/to/service-account.json
 MASTER_SEED_EMAIL=
 MASTER_SEED_PASSWORD=
 MASTER_SEED_DISPLAY_NAME=
+
+ANTHROPIC_API_KEY=                 # Claude Opus 4.7
+AI_CONCURRENCY=5                   # paralelizācija
 ```
 
-## Pirmā MASTER lietotāja izveide
+### Store (`apps/store/.env.local`)
 
-1. Console.firebase.google.com → Project Settings → Service accounts → **Generate new private key**.
-2. Saglabā JSON failu **ārpus repo**.
-3. Aizpildi `.env.local`:
-   ```
-   FIREBASE_SERVICE_ACCOUNT_PATH=/Users/<tu>/Secure/shopify-workmanis-service-account.json
-   MASTER_SEED_EMAIL=tu@workmanis.lv
-   MASTER_SEED_PASSWORD=<vismaz 8 simboli>
-   MASTER_SEED_DISPLAY_NAME=Tavs vārds
-   ```
-4. `npm run seed:master`
-5. Atver `http://localhost:3000/login` un ielogojies.
-6. Atver `http://localhost:3000/masteradmin` — citi lietotāji šo URL neredz sidebar.
+Pilns saraksts: [`apps/store/.env.example`](apps/store/.env.example).
 
-## Manifesta importēšana
-
-1. Ielogojies kā MASTER vai ADMIN.
-2. Atver `/import`.
-3. Ievadi paletes nosaukumu, izvēlies `.xlsx` failu (piem. `MF-47-ndBAUze.xlsx`).
-4. Klikšķini **Importēt**.
-5. Sistēma izveidos paleti, ievietos visus produktus, pierakstīs audit log un parādīs summary.
-
-Tehniskas detaļas: [docs/obsidian/04_Manifest_Import.md](docs/obsidian/04_Manifest_Import.md).
+```
+NEXT_PUBLIC_SITE_URL=https://14d.lv
+NEXT_PUBLIC_STORE_DOMAIN=          # mystore.myshopify.com
+SHOPIFY_STOREFRONT_ACCESS_TOKEN=
+SHOPIFY_API_VERSION=2025-04
+```
 
 ## Drošība
 
 - Firestore rules ar lomu loģiku: [firestore.rules](firestore.rules)
 - Storage rules: [storage.rules](storage.rules)
-- Reālais drošības slānis ir Firestore + Storage rules; UI gating ir tikai ērtībai.
-- Service-account JSON un `.env.local` ir `.gitignore`d.
+- Service-account JSON un `.env.local` ir `.gitignore`d
+- **Store** neimportē neko no admin sistēmas (Firestore, manifesti, AI dati)
+- Store ENV satur tikai publiskos Storefront tokens, **NEKAD** Admin API token
 
 ## Deployment
 
-Skat [docs/obsidian/08_Deployment_Vercel_Firebase.md](docs/obsidian/08_Deployment_Vercel_Firebase.md).
+| | Admin | Store |
+|---|---|---|
+| Vercel projekts | `shopify-workmanis-lv` (LIVE) | TODO — atsevišķs jauns projekts |
+| Root directory | repo root | `apps/store/` |
+| Domain | `shopify.workmanis.lv` (TODO DNS) | `14d.lv` (TODO DNS) |
 
-## Obsidian dokumentācija
+Admin deployment: [docs/obsidian/08_Deployment_Vercel_Firebase.md](docs/obsidian/08_Deployment_Vercel_Firebase.md)
 
-Atrodas [docs/obsidian/](docs/obsidian/). Atver šo mapi kā Obsidian vault.
+Store: skat [`obsidian/14D-Shopify-System-Obsidian/02_DOMAINS.md`](obsidian/14D-Shopify-System-Obsidian/02_DOMAINS.md).
+
+## Dokumentācija
+
+| | Atrašanās | Saturs |
+|---|---|---|
+| **Admin detalizēti** | [docs/obsidian/](docs/obsidian/) | 20+ failu: AI, claims, manifests, dashboard, audit |
+| **Sistēmas pārskats** | [obsidian/14D-Shopify-System-Obsidian/](obsidian/14D-Shopify-System-Obsidian/) | Augstā līmeņa skats uz visu ekosistēmu |
 
 ## TODO
 
-Skat [docs/obsidian/10_TODO.md](docs/obsidian/10_TODO.md).
+- Admin: [docs/obsidian/10_TODO.md](docs/obsidian/10_TODO.md)
+- Sistēmas: [obsidian/14D-Shopify-System-Obsidian/10_NEXT_STEPS.md](obsidian/14D-Shopify-System-Obsidian/10_NEXT_STEPS.md)
+
+## Pirmā MASTER lietotāja izveide
+
+1. Console.firebase.google.com → Project Settings → Service accounts → **Generate new private key**.
+2. Saglabā JSON failu **ārpus repo**.
+3. Aizpildi `.env.local` (admin) ar `FIREBASE_SERVICE_ACCOUNT_PATH` u.c.
+4. `npm run seed:master`
+5. Atver `http://localhost:3000/login`.
