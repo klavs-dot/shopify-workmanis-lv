@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { UploadCloud, FileSpreadsheet, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
@@ -77,6 +78,8 @@ function ManifestUploader() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
+  const [dragging, setDragging] = useState(false);
+
   const urlOk = !jobalotsUrl || JOBALOTS_URL_PATTERN.test(jobalotsUrl.trim());
 
   // Debounced auto-lookup whenever the URL becomes a valid Jobalots URL.
@@ -130,29 +133,66 @@ function ManifestUploader() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobalotsUrl]);
 
-  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    setFileName(f?.name ?? null);
-    setParsedPreview(null);
-    setSummary(null);
-    setPalletId(null);
-    setError(null);
-    if (!f) return;
-
-    try {
-      const buf = await f.arrayBuffer();
-      const parsed = parseManifestWorkbook(buf);
-      setParsedPreview(parsed);
-      if (!palletName) {
-        setPalletName(
-          parsed.manifestSku !== "UNKNOWN"
+  const processFile = useCallback(
+    async (f: File) => {
+      setFileName(f.name);
+      setParsedPreview(null);
+      setSummary(null);
+      setPalletId(null);
+      setError(null);
+      try {
+        const buf = await f.arrayBuffer();
+        const parsed = parseManifestWorkbook(buf);
+        setParsedPreview(parsed);
+        setPalletName((cur) =>
+          cur
+            ? cur
+            : parsed.manifestSku !== "UNKNOWN"
             ? parsed.manifestSku
             : f.name.replace(/\.[^.]+$/, "")
         );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Neizdevās izlasīt failu");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Neizdevās izlasīt failu");
+    },
+    []
+  );
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) {
+      setFileName(null);
+      setParsedPreview(null);
+      return;
     }
+    await processFile(f);
+  };
+
+  const onDrop = useCallback(
+    async (e: React.DragEvent<HTMLLabelElement>) => {
+      e.preventDefault();
+      setDragging(false);
+      const f = e.dataTransfer.files?.[0];
+      if (!f) return;
+      if (!/\.(xlsx|xls)$/i.test(f.name)) {
+        setError("Lūdzu, atlasi .xlsx vai .xls failu.");
+        return;
+      }
+      // Sync the hidden input so the file submits cleanly with the form.
+      if (fileInput.current) {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        fileInput.current.files = dt.files;
+      }
+      await processFile(f);
+    },
+    [processFile]
+  );
+
+  const clearFile = () => {
+    if (fileInput.current) fileInput.current.value = "";
+    setFileName(null);
+    setParsedPreview(null);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -253,29 +293,94 @@ function ManifestUploader() {
         onSubmit={onSubmit}
         className="mt-4 grid max-w-3xl grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4"
       >
-        <Field label="Excel fails (.xlsx)">
+        <Field label="Excel manifests (.xlsx vai .xls)">
           <input
             ref={fileInput}
+            id="manifest-file-input"
             type="file"
             accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={onFileChange}
-            className="block w-full text-sm"
+            className="sr-only"
           />
-          {fileName && <div className="mt-1 text-xs text-slate-500">{fileName}</div>}
-          {parsedPreview && (
-            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-              Atpazīts: <strong>{parsedPreview.rows.length}</strong> produkti ·
-              Manifest SKU <span className="font-mono">{parsedPreview.manifestSku}</span> ·
-              Total RRP{" "}
-              <strong className="tabular">
-                {parsedPreview.totalReferencePrice.toFixed(2)}{" "}
-                {parsedPreview.currency}
-              </strong>
-              {parsedPreview.errors.length > 0 && (
-                <span className="ml-2 text-amber-700">
-                  ({parsedPreview.errors.length} brīdinājumi)
-                </span>
-              )}
+
+          {!fileName ? (
+            <label
+              htmlFor="manifest-file-input"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
+                dragging
+                  ? "border-violet-500 bg-violet-50"
+                  : "border-slate-300 bg-slate-50 hover:border-violet-400 hover:bg-violet-50/40"
+              }`}
+            >
+              <UploadCloud
+                className={`h-12 w-12 ${
+                  dragging ? "text-violet-600" : "text-slate-400"
+                }`}
+              />
+              <div>
+                <div className="text-base font-semibold text-slate-900">
+                  Velc Excel failu šeit
+                </div>
+                <div className="mt-0.5 text-sm text-slate-600">
+                  vai{" "}
+                  <span className="font-semibold text-violet-700 underline-offset-2 hover:underline">
+                    izvēlies no datora
+                  </span>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-500">
+                  Atbalstītie formāti: <code>.xlsx</code>, <code>.xls</code>
+                </div>
+              </div>
+            </label>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <FileSpreadsheet className="h-8 w-8 shrink-0 text-emerald-600" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-emerald-900">
+                    {fileName}
+                  </div>
+                  {parsedPreview && (
+                    <div className="mt-0.5 text-xs text-emerald-800">
+                      <strong>{parsedPreview.rows.length}</strong> produkti ·
+                      Manifest SKU{" "}
+                      <span className="font-mono">{parsedPreview.manifestSku}</span> ·
+                      Total RRP{" "}
+                      <strong className="tabular">
+                        {parsedPreview.totalReferencePrice.toFixed(2)}{" "}
+                        {parsedPreview.currency}
+                      </strong>
+                      {parsedPreview.errors.length > 0 && (
+                        <span className="ml-2 text-amber-700">
+                          ({parsedPreview.errors.length} brīdinājumi)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <label
+                  htmlFor="manifest-file-input"
+                  className="cursor-pointer rounded-md border border-emerald-300 bg-white px-2 py-1 text-[11px] font-medium text-emerald-900 hover:bg-emerald-100"
+                >
+                  Mainīt
+                </label>
+                <button
+                  type="button"
+                  onClick={clearFile}
+                  aria-label="Noņemt failu"
+                  className="rounded-md border border-emerald-300 bg-white p-1 text-emerald-900 hover:bg-emerald-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           )}
         </Field>
