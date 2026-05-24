@@ -27,25 +27,30 @@ const QA: Array<{ q: string; a: string }> = [
   },
 ];
 
-// Typing indicator (".. .") duration before the brand starts "writing".
+// Typing indicator duration before the brand starts "writing".
 const TYPING_MS = 1000;
 
-// Word-by-word reveal cadence — how many ms between each word appearing.
-// 80 ms feels like a fast natural typist.
-const WORD_MS = 80;
+// Per-word stagger when the answer fades in. Pure CSS animation-delay,
+// no per-word React re-render — keeps the reveal smooth on slow devices.
+const WORD_MS = 70;
+
+// Word fade-in duration (must match .word-fade in globals.css).
+const WORD_FADE_MS = 280;
+
+// Tiny pause after the last word lands before the next question slides in.
+const NEXT_Q_PAUSE_MS = 280;
 
 export function Hero() {
-  // How many answers are FULLY revealed (all words shown).
+  // How many answers are FULLY revealed.
   const [answered, setAnswered] = useState(0);
-  // True while showing the "..." typing indicator (before the first word).
+  // True while showing "..." (before the first word starts fading in).
   const [typing, setTyping] = useState(false);
-  // null = no word-by-word reveal in progress. Number = how many words of
-  // the answer at index `answered` are currently visible.
-  const [wordsShown, setWordsShown] = useState<number | null>(null);
+  // True while word-fade is in progress for the answer at index `answered`.
+  const [revealing, setRevealing] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const timersRef = useRef<number[]>([]);
 
-  // Clean up any pending timers if the component unmounts mid-reveal.
+  // Clean up any pending timers if the component unmounts mid-flight.
   useEffect(() => {
     return () => {
       timersRef.current.forEach((t) => window.clearTimeout(t));
@@ -100,38 +105,32 @@ export function Hero() {
   };
 
   const reveal = () => {
-    if (typing || wordsShown != null) return; // ignore mid-flight clicks
+    if (typing || revealing) return; // ignore mid-flight clicks
     setTyping(true);
 
     schedule(() => {
       setTyping(false);
       playPop();
-      // Begin word-by-word reveal of the next answer.
       const text = QA[answered]?.a ?? "";
-      const totalWords = text.split(/\s+/).filter(Boolean).length;
-      if (totalWords === 0) {
-        // No text — just mark as answered.
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
+      if (wordCount === 0) {
         setAnswered((n) => Math.min(n + 1, QA.length));
         return;
       }
-      setWordsShown(1);
-      let next = 2;
-      const tick = () => {
-        if (next > totalWords) {
-          setWordsShown(null);
-          setAnswered((n) => Math.min(n + 1, QA.length));
-          return;
-        }
-        setWordsShown(next);
-        next += 1;
-        schedule(tick, WORD_MS);
-      };
-      schedule(tick, WORD_MS);
+      // Mount the partial bubble — CSS handles the per-word fade with
+      // staggered animation-delay. We don't tick React per word.
+      setRevealing(true);
+      const lastWordStart = (wordCount - 1) * WORD_MS;
+      const fullAnimMs = lastWordStart + WORD_FADE_MS + NEXT_Q_PAUSE_MS;
+      schedule(() => {
+        setRevealing(false);
+        setAnswered((n) => Math.min(n + 1, QA.length));
+      }, fullAnimMs);
     }, TYPING_MS);
   };
 
-  const allDone = answered >= QA.length && !typing && wordsShown == null;
-  const isComposing = typing || wordsShown != null;
+  const allDone = answered >= QA.length && !typing && !revealing;
+  const isComposing = typing || revealing;
 
   return (
     <section className="relative isolate overflow-hidden bg-neutral-900 text-white">
@@ -155,19 +154,11 @@ export function Hero() {
         <div className="mx-auto w-full max-w-2xl space-y-4 md:space-y-5">
           {QA.map((pair, i) => {
             const showQuestion = i <= answered;
-            // Already-revealed answers above the current "active" one.
             const showFullAnswer = i < answered;
-            // Typing bubble belongs to the answer that's about to start.
             const showTyping = typing && i === answered;
-            // Partial answer — word-by-word reveal in progress.
-            const showPartial = wordsShown != null && i === answered;
+            // Word-fade reveal in progress for the answer at index `answered`.
+            const showRevealing = revealing && i === answered;
             if (!showQuestion) return null;
-
-            // Partial answer text — first `wordsShown` words of QA[i].a.
-            const partialText =
-              showPartial && wordsShown
-                ? pair.a.split(/\s+/).slice(0, wordsShown).join(" ")
-                : "";
 
             return (
               <div key={i} className="space-y-3 md:space-y-4">
@@ -199,16 +190,25 @@ export function Hero() {
                   </div>
                 )}
 
-                {/* Partial answer — bubble grows as words are added.
-                 *  No max-w-* here on purpose: the bubble must hug the
-                 *  current word count so it visibly expands word-by-word. */}
-                {showPartial && (
+                {/* Revealing answer — full bubble width from t=0, words
+                 *  fade in one-by-one via CSS animation-delay. No reflow,
+                 *  no React per-word state. */}
+                {showRevealing && (
                   <div
                     className="bubble-in flex items-end justify-end gap-2.5 md:gap-3"
                     aria-live="polite"
                   >
                     <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-blue-500 px-5 py-3 text-base text-white shadow-xl md:px-6 md:py-4 md:text-lg">
-                      {partialText}
+                      {pair.a.split(/\s+/).map((w, wi) => (
+                        <span
+                          key={wi}
+                          className="word-fade"
+                          style={{ animationDelay: `${wi * WORD_MS}ms` }}
+                        >
+                          {w}
+                          {wi < pair.a.split(/\s+/).length - 1 ? " " : ""}
+                        </span>
+                      ))}
                     </div>
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-bold uppercase text-white md:h-12 md:w-12 md:text-sm">
                       14D

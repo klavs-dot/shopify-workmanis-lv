@@ -92,25 +92,47 @@ body {
   }
 }
 
-/* Logo cardboard box — periodically peeks out from behind the "D" with a
- * small overshoot, lingers a moment, then settles back. Idle 80% of the
- * cycle so it doesn't feel jittery. */
+/* Per-word fade-in for the messenger answer reveal. Each word starts at
+ * opacity 0 / y +3px and uses a staggered `animation-delay` set inline.
+ * Pure CSS — no React re-render per word, no layout thrash. */
+.word-fade {
+  display: inline-block;
+  opacity: 0;
+  animation: word-fade 280ms ease-out forwards;
+  will-change: opacity, transform;
+}
+@keyframes word-fade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logo cardboard box — periodically peeks out from behind "D" with a
+ * small lift + tilt + overshoot, then settles. Idle 78% of the cycle so
+ * it never feels jittery. transform-box: fill-box anchors rotate inside
+ * the SVG group's own bbox (instead of the page origin). */
 .logo-box {
   animation: logo-box-peek 4.5s ease-in-out infinite;
-  transform-origin: left center;
+  transform-box: fill-box;
+  transform-origin: 0% 50%;
 }
 @keyframes logo-box-peek {
-  0%, 78%, 100% {
-    transform: translateX(0) rotate(0deg) scale(1);
+  0%, 75%, 100% {
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
   }
-  84% {
-    transform: translateX(5px) rotate(-4deg) scale(1.04);
+  82% {
+    transform: translateX(6px) translateY(-2px) rotate(-5deg) scale(1.05);
   }
-  90% {
-    transform: translateX(3px) rotate(2deg) scale(1.02);
+  88% {
+    transform: translateX(4px) translateY(-1px) rotate(2deg) scale(1.02);
   }
-  95% {
-    transform: translateX(1px) rotate(0deg) scale(1);
+  93% {
+    transform: translateX(1px) translateY(0) rotate(0deg) scale(1);
   }
 }
 
@@ -124,5 +146,9 @@ body {
   }
   .logo-box {
     animation: none;
+  }
+  .word-fade {
+    animation: none;
+    opacity: 1;
   }
 }
