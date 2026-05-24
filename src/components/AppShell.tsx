@@ -57,15 +57,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-b border-slate-200 p-4">
           <Link
             href="/dashboard"
-            className="flex flex-col items-center gap-2 text-center"
+            className="flex flex-col items-center gap-3 text-center"
           >
-            <RobotLogo className="h-32 w-32" />
+            <RobotLogo className="h-28 w-28" />
             <div>
-              <div className="text-sm font-semibold text-slate-900">
-                shopify.workmanis.lv
+              <div className="text-2xl font-extrabold tracking-tight text-slate-900">
+                WORKMANIS
               </div>
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">
-                Pallet operations
+              <div className="mt-0.5 text-xs text-slate-500">
+                Shopify Pallet Operations
               </div>
             </div>
           </Link>
@@ -135,8 +135,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-b border-slate-200 bg-white px-4 py-3 md:hidden">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <RobotLogo className="h-16 w-16 shrink-0" />
-              <span className="text-sm font-semibold">shopify.workmanis.lv</span>
+              <RobotLogo className="h-12 w-12 shrink-0" />
+              <div className="leading-tight">
+                <div className="text-lg font-extrabold tracking-tight text-slate-900">
+                  WORKMANIS
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Shopify Pallet Operations
+                </div>
+              </div>
             </Link>
             {appUser && (
               <span

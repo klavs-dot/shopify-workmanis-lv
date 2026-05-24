@@ -40,10 +40,11 @@ function LoginInner() {
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col items-center text-center">
           <RobotLogo className="h-48 w-48" />
-          <h1 className="mt-2 text-lg font-semibold text-slate-900">
-            shopify.workmanis.lv
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-900">
+            WORKMANIS
           </h1>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">Shopify Pallet Operations</p>
+          <p className="mt-3 text-xs text-slate-500">
             Atsevišķa palešu / Shopify sagatavošanas sistēma.
             <br />
             <strong className="text-slate-700">NAV</strong> Workmanis.lv projekts.
