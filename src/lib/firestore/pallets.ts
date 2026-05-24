@@ -48,11 +48,20 @@ export async function createPallet(input: CreatePalletInput): Promise<string> {
   if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
   const ref = await addDoc(collection(firebaseDb, "pallets"), {
     ...input,
-    status: "imported" satisfies PalletStatus,
+    // Default to in_transit — manifest is in our system, but the physical
+    // pallet is still on its way from the supplier. The Loģistika page is
+    // where warehouse staff flips it to "imported" (= ready for sorting).
+    status: "in_transit" satisfies PalletStatus,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Mark a pallet as physically received at the warehouse. Called from the
+ *  Loģistika "Saņemts! Nosūtīt uz šķirošanu!" button. */
+export async function markPalletReceived(id: string): Promise<void> {
+  await updatePallet(id, { status: "imported" });
 }
 
 export interface UpdatePalletInput {

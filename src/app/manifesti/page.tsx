@@ -435,12 +435,26 @@ function ManifestUploader() {
               </ul>
             </details>
           )}
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+            🚚 Palete sākotnēji nonāca <strong>Loģistikā</strong> ar statusu "Ceļā,
+            gaidām piegādi". Kad palete fiziski nonāks noliktavā, atver{" "}
+            <Link href="/logistika" className="font-semibold underline-offset-2 hover:underline">
+              Loģistikas sadaļu
+            </Link>{" "}
+            un nospied "Saņemts! Nosūtīt uz Šķirošanu!"
+          </div>
           <div className="flex gap-2 pt-2">
             <Link
-              href={`/skirosana/${palletId}`}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+              href="/logistika"
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
             >
-              Atvērt Šķirošanā
+              Skatīt Loģistikā →
+            </Link>
+            <Link
+              href={`/skirosana/${palletId}`}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs"
+            >
+              Atvērt detalizēti (pirms saņemšanas)
             </Link>
             <button
               type="button"
@@ -571,6 +585,7 @@ function buildCardData(pallet: Pallet, products: Product[]): ManifestCardData {
 
 function ManifestCard({ data }: { data: ManifestCardData }) {
   const { pallet } = data;
+  const inTransit = pallet.status === "in_transit";
   // Predicted profit heuristic: 50% of the planned selling-prices sum.
   const predictedProfit = data.totalFinalPrice * 0.5;
   // Actual realised P&L = soldRevenue − purchasePrice (when known).
@@ -583,11 +598,17 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
       ? data.soldRevenue / pallet.purchasePrice
       : null;
   return (
-    <article className="flex flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <article
+      className={`flex flex-col rounded-lg border p-4 shadow-sm ${
+        inTransit
+          ? "border-amber-200 bg-amber-50/40"
+          : "border-slate-200 bg-white"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link
-            href={`/skirosana/${pallet.id}`}
+            href={inTransit ? "/logistika" : `/skirosana/${pallet.id}`}
             className="block truncate text-sm font-semibold text-slate-900 hover:underline"
           >
             {pallet.name}
@@ -596,6 +617,11 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
             <span className="font-mono">{pallet.manifestSku}</span>
             {pallet.source && ` · ${pallet.source}`}
           </div>
+          {inTransit && (
+            <span className="mt-1 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+              🚚 Ceļā
+            </span>
+          )}
         </div>
         {pallet.jobalotsUrl && (
           <a

@@ -2,6 +2,22 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Loģistikas posms starp Manifesti un Šķirošanu
+
+**Veikts:**
+
+- Jauns `PalletStatus` enum vērtība: `in_transit` (pirms `imported`).
+- `createPallet()` default mainīts no `imported` → `in_transit`. Visas jaunās paletes sāk Loģistikā.
+- Jauns helper `markPalletReceived(palletId)` → status `imported` + audit `pallet_received`.
+- Jauns sidebar links **Loģistika** ar truck ikonu, novietots starp Manifesti un Šķirošanu.
+- `/logistika` lapa rāda tikai `status === "in_transit"` paletes ar amber karti, "🚚 Ceļā, gaidām piegādi!" badge un zaļo pogu **"✓ Saņemts! Nosūtīt uz Šķirošanu!"** (atļauts MASTER/ADMIN/WAREHOUSE — jauns permission `receivePallets`).
+- `/skirosana` filtrē ārā `in_transit` paletes (rāda tikai pēc saņemšanas).
+- `/manifesti` import-success kartiņa parāda amber baneri ar saiti uz Loģistiku + 2 pogas: zaļā "Skatīt Loģistikā →" un sekundārā "Atvērt detalizēti (pirms saņemšanas)".
+- Manifesti landing cards `in_transit` paletēm — amber border + "🚚 Ceļā" badge + click ved uz Loģistiku, ne Šķirošanu.
+- StatusBadge papildināts ar `in_transit` (amber) un atjaunots `imported` label = "Saņemts noliktavā".
+
+**Esošās paletes (importētas pirms šī commit) paliek ar `imported` statusu — nav vajadzīga datu migrācija**, jo tās jau tika apstrādātas.
+
 ## 2026-05-24 — Branding: WORKMANIS wordmark + animēts robots
 
 **Veikts:**

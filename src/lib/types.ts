@@ -26,7 +26,8 @@ export interface AppUser {
 // ---------- Pallets ----------
 
 export type PalletStatus =
-  | "imported"
+  | "in_transit"        // imported into system, physical pallet en route from supplier
+  | "imported"          // physical pallet received at warehouse, ready for sorting
   | "in_warehouse_check"
   | "in_pricing"
   | "in_approval"
@@ -227,6 +228,7 @@ export type AuditAction =
   | "role_changed"
   | "manifest_imported"
   | "pallet_created"
+  | "pallet_received"           // logistics → received → sent to sorting
   | "pallet_jobalots_synced"
   | "product_created"
   | "product_approved"

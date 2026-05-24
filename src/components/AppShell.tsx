@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   FileSpreadsheet,
+  Truck,
   Package,
   Layers,
   CheckSquare,
@@ -37,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       icon: FileSpreadsheet,
       visible: () => hasPermission(appUser?.role, "importManifest"),
     },
+    { href: "/logistika", label: "Loģistika", icon: Truck },
     { href: "/skirosana", label: "Šķirošana", icon: Layers },
     { href: "/products", label: "Produkti", icon: Package },
     {

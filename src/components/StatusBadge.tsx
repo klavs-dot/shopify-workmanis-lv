@@ -72,7 +72,11 @@ const AI: BadgeMap<AiStatus> = {
 };
 
 const PALLET: BadgeMap<PalletStatus> = {
-  imported: { label: "Importēta", className: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
+  in_transit: {
+    label: "Ceļā — gaidām piegādi",
+    className: "bg-amber-100 text-amber-800 ring-amber-200",
+  },
+  imported: { label: "Saņemts noliktavā", className: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
   in_warehouse_check: {
     label: "Noliktavas pārbaude",
     className: "bg-blue-100 text-blue-800 ring-blue-200",

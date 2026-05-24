@@ -35,7 +35,11 @@ function SkirosanaList() {
   useEffect(() => {
     (async () => {
       try {
-        const pallets = await listPallets();
+        // Filter out pallets that are still in transit — they belong on
+        // /logistika until the warehouse marks them received.
+        const pallets = (await listPallets()).filter(
+          (p) => p.status !== "in_transit"
+        );
         const all = await Promise.all(pallets.map((p) => listProducts({ palletId: p.id })));
         setRows(pallets.map((p, i) => buildRow(p, all[i] || [])));
       } catch (err) {

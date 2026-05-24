@@ -7,6 +7,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
   ADMIN: [
     /^\/dashboard/,
     /^\/manifesti/,
+    /^\/logistika/,
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
@@ -15,6 +16,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
   ],
   WAREHOUSE: [
     /^\/dashboard/,
+    /^\/logistika/,
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
@@ -23,6 +25,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
   ],
   VIEWER: [
     /^\/dashboard/,
+    /^\/logistika/,
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
@@ -46,6 +49,9 @@ export const PERMISSIONS = {
   viewProducts: ["MASTER", "ADMIN", "WAREHOUSE", "VIEWER"] as UserRole[],
   viewAuditLog: ["MASTER"] as UserRole[],
   managePallets: ["MASTER", "ADMIN"] as UserRole[],
+  // Receive physical pallets (Loģistika → Šķirošana transition).
+  // Warehouse staff is the typical caller, not just admins.
+  receivePallets: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
   connectShopify: ["MASTER", "ADMIN"] as UserRole[],
 } as const;
 

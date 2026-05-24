@@ -84,6 +84,7 @@ shopify.workmanis.lv/
 |---|---|---|
 | `/dashboard` | Dashboard | Visi auth lietotāji |
 | `/manifesti` | **Manifesti** (bijis Import) | MASTER, ADMIN |
+| `/logistika` | **Loģistika** (jauns) — ceļā esošās paletes | Visi (saņemt: MASTER/ADMIN/WAREHOUSE) |
 | `/skirosana` | **Šķirošana** (bijis Paletes) | Visi |
 | `/products` | Produkti | Visi |
 | `/approval` | Approval | MASTER, ADMIN, WAREHOUSE |

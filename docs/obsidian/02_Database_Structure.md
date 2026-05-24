@@ -38,7 +38,7 @@ Posmā 1 + 2 paplašināts Jobalots metadatiem.
 | `location` | string \| null | **Posms 2** — piem. "Poland" |
 | `weightKg` | number \| null | **Posms 2** — paletes svars |
 | `palletCondition` | string \| null | **Posms 2** — piem. "Customer Return" |
-| `status` | `PalletStatus` enum | imported / in_warehouse_check / in_pricing / in_approval / ready_for_shopify / published / archived |
+| `status` | `PalletStatus` enum | **in_transit** (jauns Loģistika) / imported (saņemts) / in_warehouse_check / in_pricing / in_approval / ready_for_shopify / published / archived |
 | `createdBy` | string | uid |
 | `createdAt` | Timestamp | |
 | `updatedAt` | Timestamp | |
