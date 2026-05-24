@@ -122,6 +122,13 @@ Posmā 1 + 4 + 5 būtiski paplašināts. Lauki sagrupēti pēc loģikas:
 | `soldPrice` | number \| null | Faktiskā cena |
 | `soldAt` | Timestamp \| null | serverTimestamp |
 
+### Veikala dzīves cikls (Produkti veikalā lapa)
+
+| Lauks | Tips | Apraksts |
+|---|---|---|
+| `listedAt` | Timestamp \| null | Kad produkts pirmoreiz nokļuva `listed_in_store`. Auto-uzlikts ProductActionsPanel.markListed() brīdī. Bāze 7/14-dienu bucket aprēķinam. |
+| `outletSaleAt` | Timestamp \| null | Kad pārvietots uz veikala Izpārdošanas sadaļu ar bulk action. `null` = nav Izpārdošanā. |
+
 ### Shopify integrācija (vēlāk)
 
 | Lauks | Tips | Apraksts |
@@ -145,7 +152,7 @@ Posmā 1 + 4 + 5 būtiski paplašināts. Lauki sagrupēti pēc loģikas:
 |---|---|---|
 | `userId` | string | Kas izdarīja |
 | `userEmail` | string | Snapshot |
-| `action` | `AuditAction` enum | manifest_imported / product_approved / role_changed / **ai_enrichment_started** / **ai_enrichment_completed** / **product_listing_approved** / **product_listed_in_store** / **product_marked_sold** / **product_marked_disposed** / **product_customer_note_set** / **product_discount_changed** / **pallet_jobalots_synced** / **pallet_received** / **pallet_sorting_claimed** / **pallet_sorting_released** / ... |
+| `action` | `AuditAction` enum | manifest_imported / product_approved / role_changed / **ai_enrichment_started** / **ai_enrichment_completed** / **product_listing_approved** / **product_listed_in_store** / **product_marked_sold** / **product_marked_disposed** / **product_customer_note_set** / **product_discount_changed** / **pallet_jobalots_synced** / **pallet_received** / **pallet_sorting_claimed** / **pallet_sorting_released** / **product_moved_to_outlet_sale** / **product_bulk_discount_applied** / **product_bulk_price_set** / ... |
 | `entityType` | `AuditEntityType` | pallet / product / user / system / shopify_connection |
 | `entityId` | string | Mainītais dokuments |
 | `before` | object \| null | Iepriekšējais stāvoklis |

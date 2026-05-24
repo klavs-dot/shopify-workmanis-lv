@@ -103,6 +103,8 @@ function buildProductDoc(palletId: string, row: ParsedManifestRow) {
     descriptionEn: null,
     soldPrice: null,
     soldAt: null,
+    listedAt: null,
+    outletSaleAt: null,
     shopifyProductId: null,
     shopifyVariantId: null,
     shopifyStatus: "not_synced",
@@ -151,6 +153,8 @@ export interface UpdateProductInput {
   disposalReason?: string | null;
   soldPrice?: number | null;
   soldAt?: ReturnType<typeof serverTimestamp> | null;
+  listedAt?: ReturnType<typeof serverTimestamp> | null;
+  outletSaleAt?: ReturnType<typeof serverTimestamp> | null;
   images?: string[];
   enrichedImages?: string[];
   enrichedTitle?: string | null;

@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     { href: "/logistika", label: "Loģistika", icon: Truck },
     { href: "/skirosana", label: "Šķirošana", icon: Layers },
-    { href: "/products", label: "Produkti", icon: Package },
+    { href: "/products", label: "Produkti veikalā", icon: Package },
     {
       href: "/approval",
       label: "Approval",

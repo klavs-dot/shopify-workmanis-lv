@@ -21,3 +21,4 @@ Atver šo `docs/obsidian/` mapi kā vault Obsidian aplikācijā. Vault dzīvo ie
 12. [[11_Emulator_Demo]]
 13. [[12_Branding]]
 14. [[13_Sorting_Claims]]
+15. [[14_Products_In_Store]]

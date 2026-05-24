@@ -2,6 +2,26 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Produkti veikalā: 3 kategoriju kartītes + bulk darbības
+
+**Veikts:** skat [[14_Products_In_Store]] pilnu aprakstu.
+
+- `/products` sidebar label pārsaukts uz **"Produkti veikalā"**.
+- `Product` paplašināts ar 2 jauniem laukiem: `listedAt` un `outletSaleAt`.
+- `ProductActionsPanel.markListed()` automātiski uzliek `listedAt = serverTimestamp()`.
+- `/products` lapa pilnībā pārrakstīta:
+  - **Landing**: 3 kvadrātkartes (aspect-square) ar krāsotām pāreajām un unikāliem animētiem robotiem
+    - Selling — emerald, robot ar pirkumu somu un sparkles, vicina rokā
+    - Stale week — amber, robot ar pulksteni un sviedru pilienu, kāja tap
+    - Stale 2 weeks — red, robot satraukumā ar plati atvērtām X-acīm, lieli ! virs galvas, šūpojas
+  - Bucket math client-side no `listedAt ?? createdAt`: <7d / 7-14d / 15d+
+  - Bucket detail view (klikšķis kartītē → `?bucket=…`): saraksts ar bulk darbībām (atlaide, vienota cena, pārvietot uz Izpārdošanu)
+  - Bulk pielietojams visam bucket vai izvēlētajiem (checkbox)
+  - 3 jauni audit actions: `product_bulk_discount_applied`, `product_bulk_price_set`, `product_moved_to_outlet_sale`
+- Jauns komponents `src/components/RobotMascots.tsx` — 3 atsevišķi 80×80 SVG robot mascots ar CSS keyframes
+- 3 jauni `AuditAction` enum vērtības (skat. 02_Database_Structure)
+- Eksistējošajiem produktiem ar `listed_in_store` bet bez `listedAt` — bucket math izmanto `createdAt` kā fallback, datu migrācija nav nepieciešama
+
 ## 2026-05-24 — Cover images uz Šķirošanas / Loģistikas / Manifestu kartītēm
 
 **Veikts:**

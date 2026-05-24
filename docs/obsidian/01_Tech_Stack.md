@@ -86,7 +86,7 @@ shopify.workmanis.lv/
 | `/manifesti` | **Manifesti** (bijis Import) | MASTER, ADMIN |
 | `/logistika` | **Loģistika** (jauns) — ceļā esošās paletes | Visi (saņemt: MASTER/ADMIN/WAREHOUSE) |
 | `/skirosana` | **Šķirošana** (bijis Paletes) | Visi |
-| `/products` | Produkti | Visi |
+| `/products` | **Produkti veikalā** — 3 kategoriju kvadrātkartes ar unikāliem robotiem | Visi (bulk: MASTER/ADMIN) |
 | `/approval` | Approval | MASTER, ADMIN, WAREHOUSE |
 | `/utilizetas` | **Utilizētās preces** (JAUNS) | Visi |
 | `/masteradmin` | (slēpts) | MASTER tikai |

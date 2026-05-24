@@ -112,7 +112,17 @@ export function ProductActionsPanel({
     );
 
   const markListed = () =>
-    run({ listingStatus: "listed_in_store" }, "product_listed_in_store");
+    run(
+      {
+        listingStatus: "listed_in_store",
+        // Stamp the first-listed date so /products stale-bucket math works.
+        // If listedAt was already set (re-listing), the serverTimestamp
+        // simply overwrites it — that's intentional: the 7/14-day clock
+        // restarts on each manual re-listing.
+        listedAt: serverTimestamp(),
+      },
+      "product_listed_in_store"
+    );
 
   const markSold = () => {
     const parsed = soldPriceStr.trim()

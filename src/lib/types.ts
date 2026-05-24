@@ -220,6 +220,15 @@ export interface Product {
   soldPrice: number | null;
   soldAt: Timestamp | null;
 
+  /** When listingStatus first transitioned to "listed_in_store". Used by the
+   *  Produkti veikalā page to bucket products into selling / stale-1w /
+   *  stale-2w categories. Null when never listed. */
+  listedAt: Timestamp | null;
+
+  /** When this product was moved to the store's Izpārdošana (sale) section
+   *  via the stale-bucket bulk action. Null = not in the sale section. */
+  outletSaleAt: Timestamp | null;
+
   // Reserved for future Shopify integration
   shopifyProductId: string | null;
   shopifyVariantId: string | null;
@@ -258,6 +267,9 @@ export type AuditAction =
   | "product_marked_sold"
   | "product_customer_note_set"
   | "product_discount_changed"
+  | "product_moved_to_outlet_sale"     // Izpārdošana bulk move
+  | "product_bulk_discount_applied"    // bulk discount % bump from stale buckets
+  | "product_bulk_price_set"           // bulk new price from stale buckets
   | "price_changed"
   | "warehouse_status_changed"
   | "ai_enrichment_started"
