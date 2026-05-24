@@ -1,42 +1,21 @@
 import { Container } from "@/components/ui/Container";
-import { Truck, ShieldCheck, BadgePercent, Boxes } from "lucide-react";
+import { Truck, ShieldCheck, BadgePercent } from "lucide-react";
 
+// Single inline strip — kompakts, kā jobalots.com footer info-bar
 const ITEMS = [
-  {
-    icon: Boxes,
-    title: "Atlasītas preces",
-    desc: "Katra prece tiek pārbaudīta un sašķirota, pirms nonāk veikalā.",
-  },
-  {
-    icon: BadgePercent,
-    title: "Skaidra cena",
-    desc: "Bez slēptām maksām. Salīdzināmā cena rāda, cik ietaupīsi.",
-  },
-  {
-    icon: Truck,
-    title: "Ātra piegāde",
-    desc: "Sūtām visā Latvijā. Detalizēta info — Piegādes lapā.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Drošs pirkums",
-    desc: "Pirkumam tiek piemēroti normatīvajos aktos paredzētie tiesību akti.",
-  },
+  { icon: BadgePercent, label: "Atlaides līdz 90%" },
+  { icon: Truck, label: "Piegāde visā Latvijā" },
+  { icon: ShieldCheck, label: "14 dienu atteikuma tiesības" },
 ];
 
 export function TrustSection() {
   return (
-    <section className="border-y border-neutral-200 bg-white py-10">
-      <Container className="grid grid-cols-2 gap-6 md:grid-cols-4">
-        {ITEMS.map(({ icon: Icon, title, desc }) => (
-          <div key={title} className="flex gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-800">
-              <Icon className="h-5 w-5" />
-            </span>
-            <div>
-              <div className="text-sm font-semibold text-neutral-900">{title}</div>
-              <p className="mt-0.5 text-xs text-neutral-600">{desc}</p>
-            </div>
+    <section className="border-y border-neutral-200 bg-neutral-50">
+      <Container className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 py-3 text-xs text-neutral-700 md:text-sm">
+        {ITEMS.map(({ icon: Icon, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <Icon className="h-4 w-4 text-neutral-500" />
+            <span>{label}</span>
           </div>
         ))}
       </Container>

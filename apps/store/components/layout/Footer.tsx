@@ -2,12 +2,13 @@ import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
 
+// Minimal footer — jobalots.com stilā. 2 link grupas, copyright apakšā.
 export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="mt-16 border-t border-neutral-200 bg-neutral-50 text-sm text-neutral-700">
-      <Container className="grid grid-cols-1 gap-8 py-10 md:grid-cols-4">
-        <div>
+    <footer className="mt-12 border-t border-neutral-200 bg-white text-sm text-neutral-700">
+      <Container className="grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
+        <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-neutral-900 text-xs font-extrabold text-white">
               14
@@ -17,15 +18,13 @@ export function Footer() {
             </span>
           </div>
           <p className="mt-3 text-xs text-neutral-600">
-            Noliktavas, outlet un palešu preces vienā vietā. Jaunas preces
-            regulāri un ierobežotā daudzumā.
+            Outlet, atvērtas preces un palešu atradumi par izdevīgām cenām.
           </p>
         </div>
 
         <FooterColumn title="Iepirkties">
           <FooterLink href="/products">Visi produkti</FooterLink>
           <FooterLink href="/categories">Kategorijas</FooterLink>
-          <FooterLink href="/cart">Grozs</FooterLink>
         </FooterColumn>
 
         <FooterColumn title="Klientiem">
@@ -36,22 +35,14 @@ export function Footer() {
 
         <FooterColumn title="Par mums">
           <FooterLink href="/about">Par 14D</FooterLink>
-          <FooterLink href="/terms">Lietošanas noteikumi</FooterLink>
-          <FooterLink href="/privacy">Privātuma politika</FooterLink>
+          <FooterLink href="/terms">Noteikumi</FooterLink>
+          <FooterLink href="/privacy">Privātums</FooterLink>
         </FooterColumn>
       </Container>
 
-      <div className="border-t border-neutral-200 bg-white">
-        <Container className="flex flex-col items-start justify-between gap-2 py-4 text-xs text-neutral-500 md:flex-row md:items-center">
-          <div>© {year} 14D. Visas tiesības aizsargātas.</div>
-          <div className="flex gap-4">
-            <Link href="/terms" className="hover:text-neutral-700">
-              Noteikumi
-            </Link>
-            <Link href="/privacy" className="hover:text-neutral-700">
-              Privātums
-            </Link>
-          </div>
+      <div className="border-t border-neutral-200">
+        <Container className="py-3 text-center text-[11px] text-neutral-500">
+          © {year} 14D
         </Container>
       </div>
     </footer>
