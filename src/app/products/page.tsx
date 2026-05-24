@@ -8,6 +8,7 @@ import { serverTimestamp } from "firebase/firestore";
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { listPallets } from "@/lib/firestore/pallets";
 import { listProducts, updateProduct } from "@/lib/firestore/products";
 import { logAudit } from "@/lib/firestore/audit";
 import { hasPermission } from "@/lib/auth/roles";
@@ -38,6 +39,8 @@ export default function ProductsPage() {
 function ProductsHub() {
   const search = useSearchParams();
   const bucket = (search.get("bucket") as Bucket | null) ?? null;
+  const { appUser } = useAuth();
+  const isWarehouse = appUser?.role === "WAREHOUSE";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +55,18 @@ function ProductsHub() {
         listingStatus: "listed_in_store",
         limitTo: 1000,
       });
-      setProducts(data);
+      if (isWarehouse && appUser) {
+        // Worker sees only products from pallets they claimed for sorting.
+        const myPallets = await listPallets();
+        const mine = new Set(
+          myPallets
+            .filter((p) => p.sortingClaimedBy === appUser.uid)
+            .map((p) => p.id)
+        );
+        setProducts(data.filter((p) => mine.has(p.palletId)));
+      } else {
+        setProducts(data);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Neizdevās ielādēt");
     } finally {
@@ -62,7 +76,8 @@ function ProductsHub() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appUser?.uid, isWarehouse]);
 
   const counts = useMemo(() => {
     const now = Date.now();
@@ -386,6 +401,39 @@ function BucketDetailView({
     }
   };
 
+  const STALE_DISPOSAL_REASON = "Neviens nepērk 2+ nedēļas — utilizēts no /products";
+
+  const moveToDisposed = async (single?: Product) => {
+    if (!canAct) return;
+    const list = single ? [single] : targets;
+    if (list.length === 0) return;
+    const msg = single
+      ? `Pārvietot preci "${single.title.slice(0, 50)}" uz Utilizētajām?`
+      : `Pārvietot ${list.length} preci uz Utilizētajām precēm?`;
+    if (!window.confirm(msg)) return;
+    setBusy(true);
+    setToast(null);
+    try {
+      for (const p of list) {
+        await updateProduct(p.id, {
+          listingStatus: "disposed",
+          disposalReason: STALE_DISPOSAL_REASON,
+        });
+        await audit(p.id, "product_marked_disposed", {
+          from: bucket,
+          reason: STALE_DISPOSAL_REASON,
+        });
+      }
+      setToast(`✓ Pārvietots uz Utilizētajām: ${list.length} prece.`);
+      await onChanged();
+      if (!single) setSelected(new Set());
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const accentClass =
     meta.tone === "emerald"
       ? "border-emerald-200 bg-emerald-50"
@@ -528,6 +576,27 @@ function BucketDetailView({
             </button>
           </div>
 
+          {/* Move to utilizētajām — only meaningful in stale_two_weeks */}
+          {bucket === "stale_two_weeks" && (
+            <div className="rounded-md border border-red-300 bg-red-100/60 p-3">
+              <div className="text-xs font-medium text-red-900">
+                Utilizēt (preces, kuras nevar pārdot)
+              </div>
+              <p className="mt-0.5 text-[11px] text-red-800">
+                Pārvieto preces uz Utilizētajām precēm. Iemesls tiek
+                automātiski iestatīts uz &quot;Neviens nepērk 2+ nedēļas&quot;.
+              </p>
+              <button
+                type="button"
+                onClick={() => moveToDisposed()}
+                disabled={!canAct || busy || targets.length === 0}
+                className="mt-2 rounded-md bg-red-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-900 disabled:bg-slate-300"
+              >
+                🗑 Pārvietot uz Utilizētajām ({targets.length})
+              </button>
+            </div>
+          )}
+
           {toast && (
             <div className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800">
               {toast}
@@ -560,6 +629,7 @@ function BucketDetailView({
                 <th className="px-3 py-2 text-right tabular">Atlaide %</th>
                 <th className="px-3 py-2">Veikalā kopš</th>
                 <th className="px-3 py-2">Izpārdošanā?</th>
+                {bucket === "stale_two_weeks" && <th className="px-3 py-2"></th>}
                 <th className="px-3 py-2 text-right">→</th>
               </tr>
             </thead>
@@ -620,6 +690,19 @@ function BucketDetailView({
                         <span className="text-[11px] text-slate-400">—</span>
                       )}
                     </td>
+                    {bucket === "stale_two_weeks" && (
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => moveToDisposed(p)}
+                          disabled={!canAct || busy}
+                          title="Pārvietot uz Utilizētajām precēm"
+                          className="rounded-md border border-red-300 bg-white px-2 py-1 text-[10px] font-medium text-red-800 hover:bg-red-50 disabled:opacity-40"
+                        >
+                          🗑 Utilizēt
+                        </button>
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-right">
                       <Link
                         href={`/products/${p.id}`}

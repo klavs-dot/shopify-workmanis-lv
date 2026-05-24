@@ -11,6 +11,8 @@ import {
   Trash2,
   LogOut,
   ShieldCheck,
+  History,
+  Settings,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -41,6 +43,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/skirosana", label: "Šķirošana", icon: Layers },
     { href: "/products", label: "Produkti veikalā", icon: Package },
     { href: "/utilizetas", label: "Utilizētās preces", icon: Trash2 },
+    { href: "/darbibu-vesture", label: "Darbību vēsture", icon: History },
+    {
+      href: "/iestatijumi",
+      label: "Iestatījumi",
+      icon: Settings,
+      visible: () => appUser?.role === "MASTER" || appUser?.role === "ADMIN",
+    },
   ];
 
   const visibleItems = items.filter((i) => (i.visible ? i.visible() : true));

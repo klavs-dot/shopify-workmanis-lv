@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { listPallets } from "@/lib/firestore/pallets";
 import { listProducts } from "@/lib/firestore/products";
 import type { Pallet, Product } from "@/lib/types";
 
-interface Metrics {
+interface AdminMetrics {
   totalPallets: number;
   totalProducts: number;
   waitingApproval: number;
@@ -22,14 +23,27 @@ export default function DashboardPage() {
   return (
     <RequireRole allow={["MASTER", "ADMIN", "WAREHOUSE", "VIEWER"]}>
       <AppShell>
-        <DashboardContent />
+        <DashboardRouter />
       </AppShell>
     </RequireRole>
   );
 }
 
-function DashboardContent() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+function DashboardRouter() {
+  const { appUser } = useAuth();
+  if (!appUser) return <div className="text-sm text-slate-500">Ielāde…</div>;
+  if (appUser.role === "WAREHOUSE") {
+    return <WarehouseDashboard uid={appUser.uid} displayName={appUser.displayName} />;
+  }
+  return <AdminDashboard />;
+}
+
+// ---------------------------------------------------------------------------
+// Admin / Master / Viewer dashboard
+// ---------------------------------------------------------------------------
+
+function AdminDashboard() {
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [recentPallets, setRecentPallets] = useState<Pallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +52,7 @@ function DashboardContent() {
     (async () => {
       try {
         const [pallets, products] = await Promise.all([listPallets(), listProducts()]);
-        const m = aggregate(pallets, products);
-        setMetrics(m);
+        setMetrics(aggregateAdmin(pallets, products));
         setRecentPallets(pallets.slice(0, 5));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Neizdevās ielādēt datus");
@@ -82,7 +95,7 @@ function DashboardContent() {
         </div>
         {recentPallets.length === 0 ? (
           <div className="px-4 py-6 text-sm text-slate-500">
-            Vēl nav nevienas paletes. Sāc ar manifesta importu sadaļā <strong>/import</strong>.
+            Vēl nav nevienas paletes. Sāc ar manifesta importu sadaļā <strong>/manifesti</strong>.
           </div>
         ) : (
           <table className="app-table w-full text-sm">
@@ -113,7 +126,7 @@ function DashboardContent() {
   );
 }
 
-function aggregate(pallets: Pallet[], products: Product[]): Metrics {
+function aggregateAdmin(pallets: Pallet[], products: Product[]): AdminMetrics {
   let waitingApproval = 0;
   let ready = 0;
   let problems = 0;
@@ -142,14 +155,217 @@ function aggregate(pallets: Pallet[], products: Product[]): Metrics {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Warehouse worker dashboard — personal sales metrics
+// ---------------------------------------------------------------------------
+
+function startOfMonthISO(): string {
+  const d = new Date();
+  d.setDate(1);
+  return toDateInputValue(d);
+}
+
+function todayISO(): string {
+  return toDateInputValue(new Date());
+}
+
+function toDateInputValue(d: Date): string {
+  // YYYY-MM-DD in local time (matches <input type="date"> expectations).
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseLocalDate(iso: string, endOfDay = false): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+}
+
+function WarehouseDashboard({ uid, displayName }: { uid: string; displayName: string }) {
+  const [dateFrom, setDateFrom] = useState<string>(startOfMonthISO());
+  const [dateTo, setDateTo] = useState<string>(todayISO());
+  const [pallets, setPallets] = useState<Pallet[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // The "mine" set is small (a worker's own claimed pallets). Pulling
+        // everything client-side keeps the query simple — once we outgrow this,
+        // add a Firestore composite index on sortingClaimedBy + createdAt.
+        const [allPallets, allProducts] = await Promise.all([
+          listPallets(),
+          listProducts({ limitTo: 2000 }),
+        ]);
+        setPallets(allPallets);
+        setProducts(allProducts);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Neizdevās ielādēt datus");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const myPalletIds = useMemo(
+    () => new Set(pallets.filter((p) => p.sortingClaimedBy === uid).map((p) => p.id)),
+    [pallets, uid]
+  );
+
+  const myProducts = useMemo(
+    () => products.filter((p) => myPalletIds.has(p.palletId)),
+    [products, myPalletIds]
+  );
+
+  const stats = useMemo(() => {
+    const from = parseLocalDate(dateFrom, false);
+    const to = parseLocalDate(dateTo, true);
+
+    let soldCount = 0;
+    let soldSum = 0;
+    let unsoldCount = 0;
+    let unsoldSum = 0;
+
+    for (const p of myProducts) {
+      const status = p.listingStatus;
+
+      // Sold within range — soldAt is the source of truth.
+      if (status === "sold") {
+        const soldAt = p.soldAt?.toDate?.() ?? null;
+        if (soldAt && from && soldAt < from) continue;
+        if (soldAt && to && soldAt > to) continue;
+        soldCount += 1;
+        soldSum += p.soldPrice ?? p.finalPrice ?? p.referencePrice ?? 0;
+        continue;
+      }
+
+      // Unsold = currently sitting in the store.
+      // We bucket by when it was listed (or fallback to createdAt) so the
+      // worker can see "what I put up in this range that hasn't sold yet".
+      if (status === "listed_in_store" || status === "listing_approved") {
+        const listedAt = p.listedAt?.toDate?.() ?? p.createdAt?.toDate?.() ?? null;
+        if (listedAt && from && listedAt < from) continue;
+        if (listedAt && to && listedAt > to) continue;
+        unsoldCount += 1;
+        unsoldSum += p.finalPrice ?? p.referencePrice ?? 0;
+      }
+    }
+
+    return { soldCount, soldSum, unsoldCount, unsoldSum };
+  }, [myProducts, dateFrom, dateTo]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">
+          Sveiks{displayName ? `, ${displayName}` : ""}!
+        </h1>
+        <p className="text-sm text-slate-500">
+          Tava personīgā statistika no precēm, ko esi šķirojis. Filtrē pēc
+          datuma diapazona (ieskaitot abus galus).
+        </p>
+      </div>
+
+      {/* Date filter */}
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
+        <label className="block">
+          <span className="text-xs font-medium text-slate-700">No datuma</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="mt-1 block rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-slate-700">Līdz datumam</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="mt-1 block rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setDateFrom(startOfMonthISO());
+            setDateTo(todayISO());
+          }}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium hover:bg-slate-50"
+        >
+          Šis mēnesis
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-slate-500">Ielāde…</div>
+      ) : error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {error}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              label="Pārdotas preces"
+              value={stats.soldCount}
+              highlight="green"
+            />
+            <MetricCard
+              label="Pārdotas par (EUR)"
+              value={Number(stats.soldSum.toFixed(2))}
+              highlight="green"
+              isMoney
+            />
+            <MetricCard
+              label="Vēl nav pārdotas"
+              value={stats.unsoldCount}
+              highlight="amber"
+            />
+            <MetricCard
+              label="Nepārdotas vērtība (EUR)"
+              value={Number(stats.unsoldSum.toFixed(2))}
+              highlight="amber"
+              isMoney
+            />
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+            <div className="font-medium">
+              Manas paletes ({myPalletIds.size})
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Statistika balstās uz paletēm, kuras esi paņēmis šķirot Šķirošanā.
+              Preces tiek skaitītas, ja to pārdošanas vai veikalā ievietošanas
+              datums iekrīt izvēlētajā diapazonā.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared
+// ---------------------------------------------------------------------------
+
 function MetricCard({
   label,
   value,
   highlight,
+  isMoney,
 }: {
   label: string;
   value: number;
   highlight?: "amber" | "green" | "red";
+  isMoney?: boolean;
 }) {
   const tone =
     highlight === "amber"
@@ -162,7 +378,9 @@ function MetricCard({
   return (
     <div className={`rounded-lg border p-4 ${tone}`}>
       <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular text-slate-900">{value}</div>
+      <div className="mt-1 text-2xl font-semibold tabular text-slate-900">
+        {isMoney ? value.toFixed(2) : value}
+      </div>
     </div>
   );
 }

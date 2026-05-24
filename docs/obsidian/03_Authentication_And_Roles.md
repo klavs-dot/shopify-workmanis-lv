@@ -20,24 +20,41 @@ Lomas atrunātas:
 
 ## Aizsargātie ceļi
 
-| Ceļš              | Atļautās lomas                                  |
-| ------------------ | ----------------------------------------------- |
-| `/login`           | Publisks                                        |
-| `/dashboard`       | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/import`          | MASTER, ADMIN                                   |
-| `/pallets`         | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/pallets/[id]`    | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/products`        | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/products/[id]`   | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/masteradmin/**`  | **MASTER tikai**                                |
+| Ceļš                                 | Atļautās lomas                              |
+| ------------------------------------ | ------------------------------------------- |
+| `/login`                             | Publisks                                    |
+| `/dashboard`                         | MASTER, ADMIN, WAREHOUSE, VIEWER (role-aware) |
+| `/manifesti`                         | MASTER, ADMIN                               |
+| `/logistika`                         | MASTER, ADMIN, WAREHOUSE, VIEWER            |
+| `/skirosana`                         | MASTER, ADMIN, WAREHOUSE, VIEWER            |
+| `/products`                          | MASTER, ADMIN, WAREHOUSE (savas), VIEWER    |
+| `/products/[id]`                     | MASTER, ADMIN, WAREHOUSE, VIEWER            |
+| `/utilizetas`                        | MASTER, ADMIN, WAREHOUSE, VIEWER            |
+| `/darbibu-vesture`                   | MASTER, ADMIN, WAREHOUSE (savs), VIEWER     |
+| `/iestatijumi/**`                    | MASTER, ADMIN                               |
+| `/iestatijumi/shopify`               | **MASTER tikai**                            |
+| `/masteradmin/**`                    | **MASTER tikai**                            |
 
 Aizsardzību veic React-side `RequireRole` ([src/lib/auth/RequireRole.tsx](../../src/lib/auth/RequireRole.tsx)) + Firestore rules. Reālais drošības slānis ir Firestore + Storage rules, nevis UI.
+
+## Lietotāju izveide pa lomām
+
+| Caller   | Var izveidot       | Kur                                  |
+| -------- | ------------------ | ------------------------------------ |
+| MASTER   | ADMIN, WAREHOUSE, VIEWER | `/iestatijumi/lietotaji/jauns`  |
+| ADMIN    | tikai WAREHOUSE    | `/iestatijumi/lietotaji/jauns`       |
+| WAREHOUSE | —                 | —                                    |
+| VIEWER   | —                  | —                                    |
+
+`POST /api/admin/users` veic role check — ADMIN POST ar `role != "WAREHOUSE"` → 403.
+Lomu mainīt drīkst tikai MASTER (`PATCH /api/admin/users`).
 
 ## `/masteradmin` slēptais ceļš
 
 - Nav redzams sidebar lietotājiem, kas nav MASTER.
 - MASTER lietotājam parādās violeta poga sidebar apakšā.
 - URL `/masteradmin` strādā tikai MASTER lomai, citi saņem **Access denied**.
+- Šobrīd ir lielā mērā nomainīts ar publisko `/iestatijumi` (MASTER + ADMIN).
 
 ## Pirmā MASTER lietotāja izveide
 

@@ -22,3 +22,5 @@ Atver šo `docs/obsidian/` mapi kā vault Obsidian aplikācijā. Vault dzīvo ie
 13. [[12_Branding]]
 14. [[13_Sorting_Claims]]
 15. [[14_Products_In_Store]]
+16. [[15_Activity_History]]
+17. [[16_Warehouse_Dashboard]]

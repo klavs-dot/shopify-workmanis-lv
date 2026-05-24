@@ -2,6 +2,65 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Darbību vēsture + Iestatījumi + Warehouse dashboard + Utilizēt no Stale
+
+Liels role-based UX posms. Skat pilnu aprakstu [[15_Activity_History]] un [[16_Warehouse_Dashboard]].
+
+**Sidebar (visiem):**
+- Pievienots **Darbību vēsture** (`/darbibu-vesture`) — History icon, redzams visiem.
+- Pievienots **Iestatījumi** (`/iestatijumi`) — Settings icon, redzams MASTER + ADMIN.
+
+**Darbību vēsture (`/darbibu-vesture`):**
+- MASTER + ADMIN → visi auditLogs ieraksti.
+- WAREHOUSE → tikai savi (filtrēts pēc `userId == auth.uid`).
+- VIEWER → friendly "nav pieejams" ziņojums.
+- 50 ierakstu lapā ar prev/next pagination (cursor-based).
+- Tikai pēdējie 6 mēneši (Firestore `where("createdAt", ">=", cutoff)`).
+- Latviešu cilvēkam-saprotami labels visām 30+ `AuditAction` vērtībām.
+- Vecā `/masteradmin/audit` → redirect uz jauno.
+
+**Iestatījumi (`/iestatijumi`):**
+- Landing: Lietotāji, Pievienot lietotāju, Shopify (MASTER), Darbību vēsture.
+- `/iestatijumi/lietotaji` — visu lietotāju saraksts. MASTER var mainīt lomu/statusu. ADMIN tikai skatās.
+- `/iestatijumi/lietotaji/jauns` — forma role-aware: MASTER var Admin/Warehouse/Viewer, ADMIN var tikai Warehouse.
+- `/iestatijumi/shopify` — MASTER-only placeholder.
+
+**API izmaiņas (`POST /api/admin/users`):**
+- ADMIN tagad var izveidot, bet tikai ar `role=WAREHOUSE`. Pretējā gadījumā 403.
+- MASTER var jebkuru lomu (kā agrāk).
+- `PATCH` joprojām tikai MASTER (statusa/lomas izmaiņas).
+
+**Warehouse dashboard:**
+- `/dashboard` ir role-aware. WAREHOUSE redz personīgu statistiku:
+  - Pārdoto preču skaits + summa (EUR).
+  - Vēl-nepārdoto preču skaits + summa (EUR).
+  - Datuma diapazons (no — līdz, ieskaitot). Default = pašreizējais mēnesis.
+- "Manas preces" = visi produkti no paletēm, kur `sortingClaimedBy == uid`.
+- "Pārdotas" tiek filtrētas pēc `soldAt`, "nepārdotas" pēc `listedAt`.
+
+**Produkti veikalā filtrēšana Warehouse-am:**
+- WAREHOUSE redz tikai produktus no paletēm, kuras pats šķiroja (`pallet.sortingClaimedBy == uid`).
+- Pilnībā var manipulēt (cenas, statusi, utilizēt).
+
+**Stale 2+ nedēļas → Utilizēt:**
+- `/products?bucket=stale_two_weeks` — pievienots bulk "Pārvietot uz Utilizētajām" + per-row 🗑 poga.
+- Disposal reason auto-iestatīts: "Neviens nepērk 2+ nedēļas — utilizēts no /products".
+- Audit action: `product_marked_disposed`.
+
+**Atļaujas (`PERMISSIONS`):**
+- `approveProducts`, `changePrice` paplašināti uz WAREHOUSE (vajadzīgi /products UI manipulācijām).
+- `connectShopify` sašaurināts uz MASTER-only.
+
+**Firestore rules:**
+- `users.read` paplašināts uz MASTER + ADMIN (lai ADMIN lietotāju saraksta UI strādā).
+- `auditLogs.read` paplašināts: MASTER + ADMIN visu, WAREHOUSE tikai savus.
+- `products.update` WAREHOUSE atļauts plašāks lauku komplekts (pricing + lifecycle), jo UI līmenī jau ir ierobežots uz savām paletēm.
+- Jauns kompozīts indekss: `auditLogs (userId ASC, createdAt DESC)`.
+
+**Maršrutu atļaujas (`ROLE_ROUTES`):**
+- Visi → `/darbibu-vesture`.
+- MASTER, ADMIN → `/iestatijumi`.
+
 ## 2026-05-24 — Robot logo bagātāka animācija (4 → 15+ slāņi)
 
 **Veikts:** RobotLogo SVG pārtaisīts ar 15+ neatkarīgiem motion layeriem (coprime ciklu garumi: 1.3 / 1.7 / 2.1 / 3.7 / 4.3 / 4.5 / 5.2 / 5.9 / 7.3 / 8.1 / 9.7 / 11.3 / 13.1 / 17.9 / 19 s). Jo cikli nesinhronizējas, kustība praktiski nekad neatkārtojas — lietotājs vienmēr redz svaigu kombināciju.

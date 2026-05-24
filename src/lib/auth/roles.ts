@@ -11,6 +11,8 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
+    /^\/darbibu-vesture/,
+    /^\/iestatijumi/,
     /^\/settings\/profile/,
   ],
   WAREHOUSE: [
@@ -19,6 +21,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
+    /^\/darbibu-vesture/,
     /^\/settings\/profile/,
   ],
   VIEWER: [
@@ -27,6 +30,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
+    /^\/darbibu-vesture/,
     /^\/settings\/profile/,
   ],
 };
@@ -40,17 +44,22 @@ export const PERMISSIONS = {
   manageUsers: ["MASTER"] as UserRole[],
   viewMasterAdmin: ["MASTER"] as UserRole[],
   importManifest: ["MASTER", "ADMIN"] as UserRole[],
-  approveProducts: ["MASTER", "ADMIN"] as UserRole[],
-  changePrice: ["MASTER", "ADMIN"] as UserRole[],
+  // Warehouse workers approve / list / dispose products from pallets they
+  // claimed themselves. /products UI filters their view to their own pallets.
+  approveProducts: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
+  changePrice: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
   changeWarehouseStatus: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
   uploadProductImage: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
   viewProducts: ["MASTER", "ADMIN", "WAREHOUSE", "VIEWER"] as UserRole[],
+  // Activity history is now role-aware (Warehouse sees their own only),
+  // surfaced via /darbibu-vesture. Audit-permission is still master-only
+  // for any "view everything raw" use case left over.
   viewAuditLog: ["MASTER"] as UserRole[],
   managePallets: ["MASTER", "ADMIN"] as UserRole[],
   // Receive physical pallets (Loģistika → Šķirošana transition).
   // Warehouse staff is the typical caller, not just admins.
   receivePallets: ["MASTER", "ADMIN", "WAREHOUSE"] as UserRole[],
-  connectShopify: ["MASTER", "ADMIN"] as UserRole[],
+  connectShopify: ["MASTER"] as UserRole[],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

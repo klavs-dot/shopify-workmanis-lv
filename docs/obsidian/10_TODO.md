@@ -28,6 +28,11 @@
 - [x] Drag&drop upload UI Manifesti lapā
 - [x] /products pārsaukts par "Produkti veikalā" — 3 kvadrātkartes ar unikāliem robotiem + bulk darbības
 - [x] /approval sadaļa noņemta (per-product apstiprināšana paliek ProductActionsPanel-ā)
+- [x] Darbību vēsture (`/darbibu-vesture`) visiem lietotājiem — role-aware (MASTER/ADMIN visu, WAREHOUSE savu) ar 6 mēn limit + 50/lapa pagination ([[15_Activity_History]])
+- [x] Iestatījumi (`/iestatijumi`) sadaļa MASTER + ADMIN — lietotāju vadība + Shopify settings; ADMIN var pievienot tikai WAREHOUSE
+- [x] Warehouse dashboard — personīga pārdošanas statistika no šķirotām paletēm + datuma filtrs ([[16_Warehouse_Dashboard]])
+- [x] WAREHOUSE filtrs /products lapā — tikai produkti no claim-otām paletēm
+- [x] Bulk + per-row "Pārvietot uz Utilizētajām" Stale 2+ nedēļas sadaļā
 
 ## Augsta prioritāte (nākamais Shopify push)
 

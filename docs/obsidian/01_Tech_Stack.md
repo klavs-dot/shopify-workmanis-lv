@@ -78,16 +78,18 @@ shopify.workmanis.lv/
 └── firebase.json
 ```
 
-## Sidebar navigācija (Posms 1 pārstrukturēta)
+## Sidebar navigācija
 
 | Maršruts | Lapas nosaukums | Atļautās lomas |
 |---|---|---|
-| `/dashboard` | Dashboard | Visi auth lietotāji |
-| `/manifesti` | **Manifesti** (bijis Import) | MASTER, ADMIN |
-| `/logistika` | **Loģistika** (jauns) — ceļā esošās paletes | Visi (saņemt: MASTER/ADMIN/WAREHOUSE) |
-| `/skirosana` | **Šķirošana** (bijis Paletes) | Visi |
-| `/products` | **Produkti veikalā** — 3 kategoriju kvadrātkartes ar unikāliem robotiem | Visi (bulk: MASTER/ADMIN) |
-| `/utilizetas` | **Utilizētās preces** (JAUNS) | Visi |
+| `/dashboard` | Dashboard — role-aware (Warehouse redz personīgu) | Visi auth lietotāji |
+| `/manifesti` | **Manifesti** | MASTER, ADMIN |
+| `/logistika` | **Loģistika** — ceļā esošās paletes | Visi |
+| `/skirosana` | **Šķirošana** | Visi |
+| `/products` | **Produkti veikalā** — 3 kategoriju kvadrātkartes | Visi (WAREHOUSE: tikai savas paletes) |
+| `/utilizetas` | **Utilizētās preces** | Visi |
+| `/darbibu-vesture` | **Darbību vēsture** — auditLogs ar role-aware filtru, 6 mēn, 50/lapa | Visi (WAREHOUSE: tikai savs) |
+| `/iestatijumi` | **Iestatījumi** — lietotāji + Shopify | MASTER, ADMIN |
 | `/masteradmin` | (slēpts) | MASTER tikai |
 
 ## Versijas

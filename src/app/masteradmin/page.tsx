@@ -20,7 +20,7 @@ export default function MasterAdminHome() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Card href="/masteradmin/users" title="Lietotāji" desc="Skats, izveide, lomas, statuss." />
             <Card href="/masteradmin/users/new" title="Izveidot lietotāju" desc="Pievienot jaunu lietotāju." />
-            <Card href="/masteradmin/audit" title="Audit log" desc="Visu darbību ieraksti." />
+            <Card href="/darbibu-vesture" title="Darbību vēsture" desc="Visu darbību ieraksti (pēdējie 6 mēneši)." />
             <Card href="/masteradmin/settings" title="Sistēmas iestatījumi" desc="Konfigurācija, Shopify (vēlāk)." />
           </div>
         </div>

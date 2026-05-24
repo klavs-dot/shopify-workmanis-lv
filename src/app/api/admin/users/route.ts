@@ -6,10 +6,9 @@ import { USER_ROLES, type UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-// Verifies the request is coming from a MASTER user by:
-//   1. Reading the Firebase ID token from Authorization: Bearer ...
-//   2. Resolving the caller's role in Firestore /users/{uid}
-async function assertMaster(req: Request) {
+// Reads the Firebase ID token, resolves the caller's Firestore role, and
+// returns it along with their uid/email. Throws if no token or no /users doc.
+async function getCaller(req: Request) {
   const authHeader = req.headers.get("authorization") || "";
   const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
   if (!idToken) throw httpError(401, "Trūkst autentifikācijas tokena");
@@ -19,8 +18,14 @@ async function assertMaster(req: Request) {
   const snap = await db.collection("users").doc(decoded.uid).get();
   if (!snap.exists) throw httpError(403, "Lietotājs nav reģistrēts");
   const role = snap.get("role") as UserRole | undefined;
-  if (role !== "MASTER") throw httpError(403, "Nepieciešama MASTER loma");
-  return { callerUid: decoded.uid, callerEmail: decoded.email ?? "" };
+  if (!role) throw httpError(403, "Lietotājam nav lomas");
+  return { callerUid: decoded.uid, callerEmail: decoded.email ?? "", callerRole: role };
+}
+
+async function assertMaster(req: Request) {
+  const caller = await getCaller(req);
+  if (caller.callerRole !== "MASTER") throw httpError(403, "Nepieciešama MASTER loma");
+  return caller;
 }
 
 function httpError(status: number, message: string) {
@@ -31,7 +36,7 @@ function httpError(status: number, message: string) {
 
 export async function POST(req: Request) {
   try {
-    const { callerUid, callerEmail } = await assertMaster(req);
+    const { callerUid, callerEmail, callerRole } = await getCaller(req);
     const body = (await req.json()) as {
       email?: string;
       password?: string;
@@ -52,6 +57,26 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Parolei jābūt vismaz 8 simbolu garai" },
         { status: 400 }
+      );
+    }
+
+    // Role-based creation rules:
+    //   MASTER → can create any role.
+    //   ADMIN  → can create only WAREHOUSE users (no admins, no masters).
+    //   others → not allowed.
+    if (callerRole === "MASTER") {
+      // ok — anything goes
+    } else if (callerRole === "ADMIN") {
+      if (body.role !== "WAREHOUSE") {
+        return NextResponse.json(
+          { error: "Admins var izveidot tikai Warehouse lietotājus" },
+          { status: 403 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Nepietiekamas tiesības lietotāju izveidei" },
+        { status: 403 }
       );
     }
 

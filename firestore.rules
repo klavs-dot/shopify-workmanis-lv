@@ -22,10 +22,14 @@ service cloud.firestore {
     function isAnyUser()   { return isMaster() || isAdmin() || isWarehouse() || isViewer(); }
 
     // -------- Users --------
-    // Users can read their own doc (so AuthProvider can fetch role).
-    // MASTER can read/write all user docs.
+    //   - Self read: any signed-in user can read their own /users doc
+    //     (AuthProvider needs this to fetch the caller's role).
+    //   - MASTER + ADMIN can read all user docs (Iestatījumi UI shows a list).
+    //   - MASTER can create/update/delete any user doc.
+    //   - Write API (POST /api/admin/users) uses the admin SDK and bypasses
+    //     these rules; ADMIN-driven creates happen there, not via client SDK.
     match /users/{uid} {
-      allow read:  if isMaster() || request.auth.uid == uid;
+      allow read:  if isMaster() || isAdmin() || request.auth.uid == uid;
       allow create, update, delete: if isMaster();
     }
 
@@ -39,7 +43,11 @@ service cloud.firestore {
     // -------- Products --------
     // Staff can read.
     // ADMIN + MASTER can create / fully update / delete.
-    // WAREHOUSE can update only operational fields (status, condition, images).
+    // WAREHOUSE can update operational fields plus pricing / lifecycle fields
+    // they need from the per-product action panel and the stale-bucket bulk
+    // actions on /products. UI restricts them to their own claimed pallets;
+    // the rules stay coarse-grained because Firestore can't cheaply check
+    // a transitive pallet-claim from inside a product write.
     match /products/{productId} {
       allow read:   if isAnyUser();
       allow create: if isMaster() || isAdmin();
@@ -52,14 +60,29 @@ service cloud.firestore {
                   'warehouseStatus',
                   'condition',
                   'images',
+                  'finalPrice',
+                  'listingDiscountPercent',
+                  'customerNote',
+                  'listingStatus',
+                  'disposalReason',
+                  'approvalStatus',
+                  'listedAt',
+                  'outletSaleAt',
+                  'soldPrice',
+                  'soldAt',
                   'updatedAt'
                 ]));
     }
 
     // -------- Audit logs --------
-    // Append-only by signed-in users; only MASTER can read.
+    // Append-only by signed-in users.
+    //   - MASTER + ADMIN can read all entries.
+    //   - WAREHOUSE can read only their own entries (where userId == own uid).
+    //   - VIEWER has no audit access.
     match /auditLogs/{logId} {
-      allow read:   if isMaster();
+      allow read:   if isMaster()
+                    || isAdmin()
+                    || (isWarehouse() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
       allow update, delete: if false;
     }
