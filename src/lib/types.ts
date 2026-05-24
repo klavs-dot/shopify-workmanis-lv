@@ -230,6 +230,12 @@ export interface Product {
   soldPrice: number | null;
   soldAt: Timestamp | null;
 
+  /** When the warehouse worker physically dispatched the order to the
+   *  customer. null = still pending shipment. Used by dashboards to flag
+   *  late shipments (>3 days from soldAt). */
+  shippedAt: Timestamp | null;
+  shippedByUid: string | null;
+
   /** When listingStatus first transitioned to "listed_in_store". Used by the
    *  Produkti veikalā page to bucket products into selling / stale-1w /
    *  stale-2w categories. Null when never listed. */
@@ -276,6 +282,7 @@ export type AuditAction =
   | "product_listing_approved"
   | "product_listed_in_store"
   | "product_marked_sold"
+  | "product_marked_shipped"
   | "product_customer_note_set"
   | "product_discount_changed"
   | "product_moved_to_outlet_sale"     // Izpārdošana bulk move

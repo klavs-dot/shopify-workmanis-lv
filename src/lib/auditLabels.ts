@@ -24,6 +24,7 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   product_listing_approved: "Apstiprināts publicēšanai",
   product_listed_in_store: "Ievietots veikalā",
   product_marked_sold: "Atzīmēts kā pārdots",
+  product_marked_shipped: "Izsūtīts klientam",
   product_customer_note_set: "Iestatīta piezīme klientam",
   product_discount_changed: "Mainīta atlaide",
   product_moved_to_outlet_sale: "Pārvietots uz Izpārdošanu",

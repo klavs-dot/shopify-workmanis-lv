@@ -70,6 +70,8 @@ service cloud.firestore {
                   'outletSaleAt',
                   'soldPrice',
                   'soldAt',
+                  'shippedAt',
+                  'shippedByUid',
                   'updatedAt'
                 ]));
     }

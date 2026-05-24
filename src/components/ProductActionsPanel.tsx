@@ -149,6 +149,17 @@ export function ProductActionsPanel({
       "product_marked_disposed"
     );
 
+  const markShipped = () => {
+    if (!appUser) return Promise.resolve();
+    return run(
+      {
+        shippedAt: serverTimestamp(),
+        shippedByUid: appUser.uid,
+      },
+      "product_marked_shipped"
+    );
+  };
+
   const saveNoteOnly = () =>
     run(
       { customerNote: note.trim() || null },
@@ -477,6 +488,44 @@ export function ProductActionsPanel({
               Atcelt
             </button>
           </div>
+        </section>
+      )}
+
+      {/* ===== Shipment (only visible when sold) ===== */}
+      {product.listingStatus === "sold" && (
+        <section
+          className={`rounded-md border p-3 ${
+            product.shippedAt
+              ? "border-emerald-200 bg-emerald-50"
+              : "border-blue-200 bg-blue-50"
+          }`}
+        >
+          <div className="text-xs font-medium text-slate-800">
+            Klienta sūtījums
+          </div>
+          {product.shippedAt ? (
+            <div className="mt-1 text-xs text-emerald-900">
+              ✓ Izsūtīts{" "}
+              <strong className="tabular">
+                {product.shippedAt.toDate().toLocaleString("lv-LV")}
+              </strong>
+            </div>
+          ) : (
+            <>
+              <p className="mt-1 text-[11px] text-blue-900">
+                Klients samaksāja, bet prece vēl nav izsūtīta. Atzīmē, kad
+                fiziski nodod kurjeram vai pastam.
+              </p>
+              <button
+                type="button"
+                onClick={markShipped}
+                disabled={busy}
+                className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                📦 Atzīmēt kā izsūtītu
+              </button>
+            </>
+          )}
         </section>
       )}
 

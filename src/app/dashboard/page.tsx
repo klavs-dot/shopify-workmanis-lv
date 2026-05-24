@@ -9,7 +9,16 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { listPallets } from "@/lib/firestore/pallets";
 import { listProducts } from "@/lib/firestore/products";
 import { listUsers } from "@/lib/firestore/users";
-import { buildWorkerStats, type WorkerMonthStats } from "@/lib/warehouseStats";
+import { updateProduct } from "@/lib/firestore/products";
+import { logAudit } from "@/lib/firestore/audit";
+import {
+  buildWorkerStats,
+  daysSinceSold,
+  pendingShipments,
+  SHIPMENT_OVERDUE_DAYS,
+  type WorkerMonthStats,
+} from "@/lib/warehouseStats";
+import { serverTimestamp } from "firebase/firestore";
 import {
   InvestmentRobot,
   SoldRobot,
@@ -32,7 +41,13 @@ function DashboardRouter() {
   const { appUser } = useAuth();
   if (!appUser) return <div className="text-sm text-slate-500">Ielāde…</div>;
   if (appUser.role === "WAREHOUSE") {
-    return <WarehouseDashboard uid={appUser.uid} displayName={appUser.displayName} />;
+    return (
+      <WarehouseDashboard
+        uid={appUser.uid}
+        email={appUser.email}
+        displayName={appUser.displayName}
+      />
+    );
   }
   return <AdminDashboard />;
 }
@@ -276,14 +291,31 @@ function AdminDashboard() {
                   <Link
                     key={s.uid}
                     href={`/noliktavas-darbinieki/${s.uid}`}
-                    className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow"
+                    className={`block rounded-lg border bg-white p-4 shadow-sm transition hover:shadow ${
+                      s.hasOverdueShipment
+                        ? "border-red-400"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
                   >
-                    <div className="truncate text-sm font-semibold text-slate-900">
-                      {s.displayName}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">
+                          {s.displayName}
+                        </div>
+                        <div className="truncate text-[11px] text-slate-500">
+                          {s.email}
+                        </div>
+                      </div>
+                      {s.hasOverdueShipment && (
+                        <span
+                          className="shipment-overdue inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                          title={`Vecākais sūtījums: ${s.oldestUnshippedDays} d.`}
+                        >
+                          ⚠ {s.oldestUnshippedDays}d kavēts
+                        </span>
+                      )}
                     </div>
-                    <div className="truncate text-[11px] text-slate-500">
-                      {s.email}
-                    </div>
+
                     <dl className="mt-3 grid grid-cols-3 gap-1.5 text-[11px]">
                       <Mini
                         label="Veikalā"
@@ -301,6 +333,35 @@ function AdminDashboard() {
                         tone="red"
                       />
                     </dl>
+
+                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">Klienti nopirkuši</span>
+                        <span className="tabular font-semibold text-slate-900">
+                          {s.soldCount} gab. · {s.soldValue.toFixed(0)} €
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-slate-600">Nav izsūtīts</span>
+                        <span
+                          className={`tabular font-semibold ${
+                            s.hasOverdueShipment
+                              ? "text-red-700"
+                              : s.unshippedCount > 0
+                              ? "text-amber-700"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          {s.unshippedCount} gab. · {s.unshippedValue.toFixed(0)} €
+                          {s.unshippedCount > 0 &&
+                            s.oldestUnshippedDays != null && (
+                              <span className="ml-1 text-[10px] opacity-80">
+                                (vec. {s.oldestUnshippedDays}d)
+                              </span>
+                            )}
+                        </span>
+                      </div>
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -374,30 +435,78 @@ function Mini({
 // Warehouse worker dashboard — personal sales metrics
 // ---------------------------------------------------------------------------
 
-function WarehouseDashboard({ uid, displayName }: { uid: string; displayName: string }) {
+function WarehouseDashboard({
+  uid,
+  email,
+  displayName,
+}: {
+  uid: string;
+  email: string;
+  displayName: string;
+}) {
   const [dateFrom, setDateFrom] = useState<string>(startOfMonthISO());
   const [dateTo, setDateTo] = useState<string>(todayISO());
   const [pallets, setPallets] = useState<Pallet[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [shippingId, setShippingId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    try {
+      const [allPallets, allProducts] = await Promise.all([
+        listPallets(),
+        listProducts({ limitTo: 2000 }),
+      ]);
+      setPallets(allPallets);
+      setProducts(allProducts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Neizdevās ielādēt datus");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [allPallets, allProducts] = await Promise.all([
-          listPallets(),
-          listProducts({ limitTo: 2000 }),
-        ]);
-        setPallets(allPallets);
-        setProducts(allProducts);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Neizdevās ielādēt datus");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void refresh();
   }, []);
+
+  const myShipments = useMemo(
+    () => pendingShipments(uid, pallets, products),
+    [uid, pallets, products]
+  );
+
+  const overdueExists = useMemo(
+    () =>
+      myShipments.some((p) => {
+        const d = daysSinceSold(p);
+        return d != null && d > SHIPMENT_OVERDUE_DAYS;
+      }),
+    [myShipments]
+  );
+
+  const markShipped = async (productId: string) => {
+    setShippingId(productId);
+    try {
+      await updateProduct(productId, {
+        shippedAt: serverTimestamp(),
+        shippedByUid: uid,
+      });
+      await logAudit({
+        userId: uid,
+        userEmail: email,
+        action: "product_marked_shipped",
+        entityType: "product",
+        entityId: productId,
+        after: { shippedByUid: uid },
+      });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setShippingId(null);
+    }
+  };
 
   const myPalletIds = useMemo(
     () =>
@@ -495,6 +604,129 @@ function WarehouseDashboard({ uid, displayName }: { uid: string; displayName: st
         </div>
       ) : (
         <>
+          {/* Shipment alert + pending list */}
+          {myShipments.length > 0 && (
+            <section
+              className={`rounded-lg border-2 p-4 ${
+                overdueExists
+                  ? "border-red-400 bg-red-50"
+                  : "border-blue-200 bg-blue-50"
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2
+                    className={`text-sm font-semibold ${
+                      overdueExists ? "text-red-900" : "text-blue-900"
+                    }`}
+                  >
+                    {overdueExists ? "⚠️ " : "📦 "}
+                    Klientiem jāizsūta — {myShipments.length} prece(s)
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-700">
+                    {overdueExists
+                      ? `Dažas preces nav izsūtītas ilgāk par ${SHIPMENT_OVERDUE_DAYS} dienām. Lūdzu, nokārto šodien!`
+                      : "Sakārto izsūtīšanu un atzīmē, kad nodod kurjeram."}
+                  </p>
+                </div>
+                {overdueExists && (
+                  <span className="shipment-overdue inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider">
+                    Kavēts!
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 overflow-x-auto rounded-md border border-white bg-white">
+                <table className="app-table w-full text-sm">
+                  <thead className="text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">Prece</th>
+                      <th className="px-3 py-2">Pārdots</th>
+                      <th className="px-3 py-2 text-right tabular">Cena</th>
+                      <th className="px-3 py-2 text-right">Darbība</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myShipments.map((p) => {
+                      const days = daysSinceSold(p);
+                      const overdue = days != null && days > SHIPMENT_OVERDUE_DAYS;
+                      const price = p.soldPrice ?? p.finalPrice ?? p.referencePrice ?? 0;
+                      return (
+                        <tr key={p.id} className="border-t border-slate-100 align-top">
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              {p.images[0] ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={p.images[0]}
+                                  alt=""
+                                  loading="lazy"
+                                  className="h-10 w-10 shrink-0 rounded object-cover ring-1 ring-slate-200"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 shrink-0 rounded bg-slate-100 ring-1 ring-slate-200" />
+                              )}
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/products/${p.id}`}
+                                  className="block truncate text-sm font-medium text-slate-900 hover:underline"
+                                >
+                                  {p.enrichedTitle || p.title}
+                                </Link>
+                                {p.brand && (
+                                  <div className="truncate text-[11px] text-slate-500">
+                                    {p.brand}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs">
+                            {p.soldAt?.toDate ? (
+                              <>
+                                <div className="text-slate-900">
+                                  {p.soldAt.toDate().toLocaleDateString("lv-LV")}
+                                </div>
+                                {days != null && (
+                                  <div
+                                    className={
+                                      overdue
+                                        ? "font-semibold text-red-700"
+                                        : "text-slate-500"
+                                    }
+                                  >
+                                    {days === 0
+                                      ? "Šodien"
+                                      : `Pirms ${days} d.`}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular text-xs">
+                            {price.toFixed(2)} EUR
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => markShipped(p.id)}
+                              disabled={shippingId === p.id}
+                              className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {shippingId === p.id ? "Sūta…" : "📦 Izsūtīts"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <SimpleStat label="Pārdotas preces" value={stats.soldCount} tone="green" />
             <SimpleStat

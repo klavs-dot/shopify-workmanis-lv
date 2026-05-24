@@ -153,6 +153,8 @@ export interface UpdateProductInput {
   disposalReason?: string | null;
   soldPrice?: number | null;
   soldAt?: ReturnType<typeof serverTimestamp> | null;
+  shippedAt?: ReturnType<typeof serverTimestamp> | null;
+  shippedByUid?: string | null;
   listedAt?: ReturnType<typeof serverTimestamp> | null;
   outletSaleAt?: ReturnType<typeof serverTimestamp> | null;
   images?: string[];
@@ -197,5 +199,17 @@ export async function markProductSold(
     listingStatus: "sold",
     soldPrice,
     soldAt: serverTimestamp(),
+  });
+}
+
+/** Mark a sold product as physically dispatched to the customer.
+ *  Captures who shipped it for accountability. */
+export async function markProductShipped(
+  id: string,
+  shippedByUid: string
+): Promise<void> {
+  await updateProduct(id, {
+    shippedAt: serverTimestamp(),
+    shippedByUid,
   });
 }
