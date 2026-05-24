@@ -89,6 +89,7 @@ shopify.workmanis.lv/
 | `/products` | **Produkti veikalā** — 3 kategoriju kvadrātkartes | Visi (WAREHOUSE: tikai savas paletes) |
 | `/utilizetas` | **Utilizētās preces** | Visi |
 | `/darbibu-vesture` | **Darbību vēsture** — auditLogs ar role-aware filtru, 6 mēn, 50/lapa | Visi (WAREHOUSE: tikai savs) |
+| `/noliktavas-darbinieki` | **Noliktavas darbinieki** — WAREHOUSE darbinieku saraksts + statistika | MASTER, ADMIN |
 | `/iestatijumi` | **Iestatījumi** — lietotāji + Shopify | MASTER, ADMIN |
 | `/masteradmin` | (slēpts) | MASTER tikai |
 

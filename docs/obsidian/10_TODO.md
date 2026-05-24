@@ -33,6 +33,11 @@
 - [x] Warehouse dashboard — personīga pārdošanas statistika no šķirotām paletēm + datuma filtrs ([[16_Warehouse_Dashboard]])
 - [x] WAREHOUSE filtrs /products lapā — tikai produkti no claim-otām paletēm
 - [x] Bulk + per-row "Pārvietot uz Utilizētajām" Stale 2+ nedēļas sadaļā
+- [x] Noliktavas darbinieki (`/noliktavas-darbinieki`) — kartīšu saraksts + detaļu lapa ar datuma filtru + bonusa aprēķins ([[17_Warehouse_Workers]])
+- [x] Manifesta upload pre-assignment darbiniekam ar auto-rekomendāciju (mazākā šī mēn potenciālā peļņa)
+- [x] Loģistika auto-claim, kad palete saņemta un piešķirta
+- [x] Manifesta kartītes — izņemta plānoto cenu summa, "Šķirotavā" vietā "Nav veikalā", piešķirtais darbinieks redzams
+- [x] Admin/Master dashboard ar 4 animētiem robotiem (Investment/Sold/InStore/Disposed) + datuma filtrs + darbinieku kartītes
 
 ## Augsta prioritāte (nākamais Shopify push)
 
@@ -64,6 +69,8 @@
 - [ ] Password reset e-pasta plūsma
 - [ ] Outlet sale page Šopify pusē (kad kāds atver `outlet.workmanis.lv` vai `/collections/outlet`)
 - [ ] Backfill `listedAt` eksistējošajiem `listed_in_store` produktiem ar `updatedAt` heuristiku
+- [ ] Bonusu likmes konfigurācija Iestatījumos (šobrīd hardcoded 10%)
+- [ ] Re-assign palete citam darbiniekam pēc augšupielādes (atsevišķa UI Loģistikā vai Šķirotavā)
 
 ## Zema prioritāte / nākotnē
 

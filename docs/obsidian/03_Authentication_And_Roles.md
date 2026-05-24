@@ -31,6 +31,7 @@ Lomas atrunātas:
 | `/products/[id]`                     | MASTER, ADMIN, WAREHOUSE, VIEWER            |
 | `/utilizetas`                        | MASTER, ADMIN, WAREHOUSE, VIEWER            |
 | `/darbibu-vesture`                   | MASTER, ADMIN, WAREHOUSE (savs), VIEWER     |
+| `/noliktavas-darbinieki/**`          | MASTER, ADMIN                               |
 | `/iestatijumi/**`                    | MASTER, ADMIN                               |
 | `/iestatijumi/shopify`               | **MASTER tikai**                            |
 | `/masteradmin/**`                    | **MASTER tikai**                            |

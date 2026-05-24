@@ -2,6 +2,51 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Noliktavas darbinieki sadaļa + dashboard ar 4 robotiem + manifest assignment
+
+Pilns aprakts: [[17_Warehouse_Workers]].
+
+**Sidebar (MASTER+ADMIN, apakšā):**
+- Pievienots **Noliktavas darbinieki** (`/noliktavas-darbinieki`) — Users icon.
+
+**Jaunās lapas:**
+- `/noliktavas-darbinieki` — WAREHOUSE darbinieku kartīšu saraksts ar šī mēneša statistiku.
+- `/noliktavas-darbinieki/jauns` — forma ar vārds + uzvārds + epasts + auto-ģenerēta parole (🔄 atjaunot, 📋 kopēt). Pēc submit parāda pieslēgšanās datus vienreiz.
+- `/noliktavas-darbinieki/[uid]` — individuāla statistika ar datuma filtru (default = šis mēnesis), 8 metrikas, paletu saraksts, bonusa aprēķins 10% no pārdotā (placeholder).
+
+**Manifesta augšupielāde — pre-assignment:**
+- Jauns **"Šķiros (noliktavas darbinieks)"** dropdown formā.
+- Auto-rekomendācija: darbinieks ar mazāko šī mēneša potenciālo peļņu (`recommendWorker()` no `lib/warehouseStats.ts`).
+- Tukšs = darbinieki paši paņem Šķirošanā kā agrāk.
+
+**Loģistika — auto-claim:**
+- `markPalletReceivedAutoClaim()` aizvieto veco `markPalletReceived()`.
+- Ja palete `assignedWarehouseUid` ir uzstādīts un neviens jau nav claim-ojis, "Saņemts!" poga arī automātiski uzliek `sortingClaimedBy = assigned`.
+- Audit log atskaita gan `pallet_received`, gan `pallet_sorting_claimed (via: auto-from-assignment)`.
+
+**Manifest kartīšu metrika (`/manifesti`):**
+- Izņemta **"Plānotā cenu summa"** rinda.
+- **"Prognozētā peļņa (50%)"** tagad **50% no Total RRP** (nevis no plānoto cenu summas).
+- **"Nav veikalā" → "Šķirotavā"** (filter pill).
+- Pievienots `Šķiros: <vārds>` zem metrikām.
+
+**Admin/Master dashboard pārveidots:**
+- Datuma filtrs (no — līdz, default = šis mēnesis).
+- **4 metriku kartes ar unikāliem animētiem robotiem:**
+  - Ieguldītā nauda (InvestmentRobot, violet — lec € monēta)
+  - Pārdotas preces (SoldRobot, blue — PĀRDOTS zīmogs + grozs, € acīs)
+  - Preces veikalā (InStoreRobot, emerald — sale-tag šūpojas, dzirksteles)
+  - Utilizētās preces (DisposedRobot, slate — atver atkritumu kasti, X acis)
+- Apakšā: visu Warehouse darbinieku mini-kartītes ar Veikalā/Pārdotās/Utilizētās EUR.
+
+**Datu modelis:**
+- `Pallet` +5 lauki: `assignedWarehouseUid`, `assignedWarehouseEmail`, `assignedWarehouseName`, `assignedWarehouseAt`, `assignedBy`.
+- `AuditAction` +1: `pallet_assigned_to_warehouse`.
+
+**Jauni helper moduļi:**
+- [src/lib/warehouseStats.ts](../../src/lib/warehouseStats.ts) — `buildWorkerStats()`, `recommendWorker()`.
+- [src/lib/passwordGen.ts](../../src/lib/passwordGen.ts) — `generateFriendlyPassword()` (paleti-noliktava-742 formāts).
+
 ## 2026-05-24 — Darbību vēsture + Iestatījumi + Warehouse dashboard + Utilizēt no Stale
 
 Liels role-based UX posms. Skat pilnu aprakstu [[15_Activity_History]] un [[16_Warehouse_Dashboard]].
