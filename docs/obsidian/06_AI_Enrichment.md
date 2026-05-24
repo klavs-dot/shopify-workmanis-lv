@@ -1,17 +1,20 @@
 # 06 — AI Enrichment (Implemented)
 
-> **Status:** LIVE on production. Iebūvēts Posms 5 (2026-05-24, commit `ebca0f3`).
+> **Status:** LIVE on production. Sākotnēji iebūvēts kā Posms 5 (commit `ebca0f3`, Sonnet 4.6 + 2 valodas). Atjaunināts uz **Opus 4.7 + 3 valodas + auto-trigger** (commit `ad14d39`) — skat arī [[19_Auto_Enrichment]].
 
-Izmanto **Claude Sonnet 4.6** ar Anthropic-hostētiem **web_search + web_fetch** tools, lai katram produktam ģenerētu:
+Izmanto **Claude Opus 4.7** ar Anthropic-hostētiem **web_search + web_fetch** tools, lai katram produktam ģenerētu:
 
-1. Cleaned English title (zem 80 simboliem)
-2. Latviešu apraksts Shopify (150-300 simboli, fluent + diacritics)
-3. English description Shopify (150-300)
-4. Suggested Shopify category (`Home & Kitchen > Lighting > …`)
-5. Augstas kvalitātes produkta bildes (no Amazon / ražotāja / trusted source)
-6. Source URLs
-7. Confidence score (0.0-1.0)
-8. Optional notes (counterfeit warning, discontinued, etc.)
+1. **Latviešu** virsraksts (zem 80 simboliem, dabīga valoda)
+2. **English** title (mirror LV content)
+3. **Русский** заголовок
+4. Latviešu apraksts Shopify (150-300 simboli, fluent + diacritics)
+5. English description Shopify (150-300)
+6. Русское описание (150-300)
+7. Suggested Shopify category (`Home & Kitchen > Lighting > …`)
+8. Augstas kvalitātes produkta bildes (no Amazon / ražotāja / trusted source)
+9. Source URLs
+10. Confidence score (0.0-1.0)
+11. Optional notes (counterfeit warning, discontinued, etc.)
 
 ## Tehniskā arhitektūra
 
@@ -27,8 +30,8 @@ Izmanto **Claude Sonnet 4.6** ar Anthropic-hostētiem **web_search + web_fetch**
 
 | Parametrs | Vērtība | Komentārs |
 |---|---|---|
-| Model | `claude-sonnet-4-6` | Lētāks par Opus, pietiekams šim uzdevumam |
-| `max_tokens` | 4096 | Final JSON ir mazs (~5KB) |
+| Model | `claude-opus-4-7` | Flagship, materiāli labāks LV/RU kvalitātē |
+| `max_tokens` | 6000 | 3 valodu virsraksti + apraksti vajag vairāk telpas |
 | `tools` | `web_search_20260209`, `web_fetch_20260209` | Dynamic filtering versijas |
 | `output_config.format` | `json_schema` | Strikta strukturēta atbilde |
 | `cache_control` | `ephemeral` uz system promptā | Auto-cache pēc 2048 tokens |

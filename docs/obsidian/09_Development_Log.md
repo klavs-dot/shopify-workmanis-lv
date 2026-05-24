@@ -2,6 +2,48 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — AI bagātinājums: Opus 4.7 + LV/EN/RU + auto-trigger pie claim
+
+Pilns apraksts: [[19_Auto_Enrichment]]. Updated arī [[06_AI_Enrichment]].
+
+**AI modeli mainīts:**
+- `claude-sonnet-4-6` → **`claude-opus-4-7`** (Anthropic flagship, materiāli labāks latviešu valodā)
+- System prompt pārtaisīts latviski ar stipru uzsvaru uz LV kvalitāti (nav mašīntulkojums, diakritikas obligātas)
+- `max_tokens` 4096 → 6000 (3 valodu virsraksti + apraksti vajag vairāk telpas)
+
+**Datu modelis multi-language Shopify:**
+- `Product +3 lauki`: `enrichedTitleEn`, `enrichedTitleRu`, `descriptionRu`
+- `enrichedTitle` semantika MAINĪTA — bija EN, tagad ir LV (galvenā veikala valoda)
+- `Pallet +5 lauki`: `autoEnrichmentStartedAt/CompletedAt/Succeeded/Failed/Error`
+- JSON schema atjaunota 3 valodu virsrakstiem + aprakstiem
+
+**Auto-trigger workflow:**
+- Jauns helper `lib/ai/autoEnrich.ts` — `fireAutoEnrich()` ar `keepalive: true`, fire-and-forget
+- `/skirosana` page: pēc `claimPalletForSorting` palaiž
+- `/logistika` page: pēc `markPalletReceivedAutoClaim` (ja pre-assigned) palaiž
+- `/api/ai/enrich-pallet` jauns body `auto: true`:
+  - Atļauj Warehouse zvanīt (citādi tikai admin/master)
+  - Idempotents (skip ja jau notiek)
+  - Stamp Pallet.autoEnrichmentStartedAt → CompletedAt + counters
+
+**WritingRobot mascot (RobotMascots.tsx):**
+- Robots ar planšeti + pildspalvu
+- 11 paralēlas animācijas: bob, head-tilt, pen-jiggle, eyes look LR, blink, thinking dots, 3 staggered ink-line scribbles
+- `prefers-reduced-motion` ievērots
+
+**UI bloking + writing robot:**
+- Šķirošanas saraksta lapā: paletes kartīte rāda full-overlay ar WritingRobot, kamēr enrichment notiek. Polling 10s.
+- Šķirošanas detaļu lapā: blocking full-page ekrāns ar lielo robotu + statusu. MASTER var bypass. Polling 8s. Zaļš success banner pēc completion.
+
+**ProductActionsPanel manual edit:**
+- Read-only AI sadaļa → tabbed editor **[LATVIEŠU | ENGLISH | РУССКИЙ]**
+- Katrā tabā: virsraksts input + apraksts textarea ar char-count
+- "Saglabāt tulkojumus" poga (disabled, kamēr nav izmaiņu)
+- Audit log par manuālajām izmaiņām
+
+**Firestore rules:**
+- Warehouse drīkst update jaunos 6 multilang laukus (lai manual edit strādātu)
+
 ## 2026-05-24 — Shipment tracking ar mirgojošo brīdinājumu (>3d)
 
 Skat pilnu aprakstu: [[18_Shipment_Tracking]].

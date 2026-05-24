@@ -39,6 +39,7 @@
 - [x] Manifesta kartītes — izņemta plānoto cenu summa, "Šķirotavā" vietā "Nav veikalā", piešķirtais darbinieks redzams
 - [x] Admin/Master dashboard ar 4 animētiem robotiem (Investment/Sold/InStore/Disposed) + datuma filtrs + darbinieku kartītes
 - [x] Shipment tracking (`shippedAt` + `shippedByUid`) ar mirgojošo brīdinājumu, ja sūtījums nav izsūtīts ilgāk par 3 dienām ([[18_Shipment_Tracking]])
+- [x] AI uz Claude Opus 4.7 — 3-valodu izvade (LV/EN/RU) + auto-trigger pie claim + WritingRobot bloķējošs ekrāns + manuālā labošana ([[19_Auto_Enrichment]])
 
 ## Augsta prioritāte (nākamais Shopify push)
 
@@ -58,10 +59,11 @@
 
 ## Vidēja prioritāte
 
-- [ ] AI: paralelizācija per-pallet route (pašlaik sequential, 25 produkti = ~20 min)
+- [ ] AI: paralelizācija per-pallet route (pašlaik sequential, 25 produkti = ~20 min). Tas ir īpaši svarīgi tagad, kad auto-enrichment bloķē Šķirotavu — paralelizācija ar 3-5 workers vajadzētu samazināt uz 4-7 min.
 - [ ] AI: retry mehānisms — ja viens `web_fetch` falls, mēģināt vēlreiz
-- [ ] AI: per-day budget cap (env `AI_DAILY_CAP_USD`)
-- [ ] AI: streaming response (SSE) lai UI rāda live progress
+- [ ] AI: per-day budget cap (env `AI_DAILY_CAP_USD`) — Opus 4.7 ir dārgāks
+- [ ] AI: streaming response (SSE) lai UI rāda live progress (kurš produkts šobrīd notiek)
+- [ ] AI: backfill — esošajiem enriched produktiem palaist re-enrich, lai dabūtu LV/RU saturu (šobrīd enrichedTitle ir EN un nav RU vispār)
 - [ ] Image upload UI noliktavas darbiniekam (Storage rules jau gatavi)
 - [ ] Bāzes unit testi `lib/pricing.ts`, `lib/manifest.ts`, `lib/jobalots.ts`, `lib/ai/enrich.ts`
 - [ ] Duplicate detection pie reimporta (`asin + manifestSku`)
