@@ -67,6 +67,41 @@ Bet tie ir kosmētiski jautājumi, kas tiek atrisināti migrācijas brīdī.
 
 CSS mainīgais `--color-accent` ļauj viegli mainīt akcentu vēlāk.
 
+## 2026-05-25 — Hero ir chat, nevis statisks banner
+
+**Lēmums:** 14d.lv sākumlapas Hero ir pilnībā chat-driven Messenger-style widget ar 3 secīgi atklājamiem Q&A pāriem. Pilnu video fonu (noliktavas darbinieks ar 14D.lv kastēm uz konveijera) papildina tumšs gradient overlay.
+
+**Q&A pāri:**
+1. "Kāpēc tik lēti?" → "Šīs ir preces, kuras nav izņemtas pastā, nav atradies saņēmējs vai citādi atgrieztas lielākajos pasaules interneta veikalos."
+2. "Kur atrodas noliktava?" → "Preces jau ir Latvijas noliktavā un tiek izsūtītas tajā pašā vai nākamajā dienā."
+3. "Cik bieži papildinās preces?" → "Katru darba dienu, vairākas reizes dienā."
+
+**Plūsma:** Klikšķis "Skatīt atbildi" → typing dots 1s → atbilde rakstās pa vienam vārdam ar 80ms intervālu (bubble dabīgi paplašinās) → Web Audio API sintezēta "pop" skaņa → nākamais Q + poga.
+
+**Kāpēc:**
+- Chat formāts ļauj klientam pa solim saprast brand stāstu (cenas, noliktava, papildinājums)
+- Interaktīvs — uzlabo iesaisti, atšķir no parastiem outlet veikaliem
+- Mobile-first ar lielām bubble — labi lasāms uz telefona
+
+**Tehniski:** [`apps/store/components/home/Hero.tsx`](../../apps/store/components/home/Hero.tsx), CSS animācijas `.bubble-in` un `.typing-dot` iekš `globals.css`. `prefers-reduced-motion` ievērots — animācijas izslēdzas. Skaņa atskaņojas tikai uz user klikšķa (autoplay restrictions).
+
+## 2026-05-25 — 14D.lv logo: zils wordmark + peeking kaste
+
+**Lēmums:** Iepriekšējais "14 14D" placeholder logo aizvietots ar markēšanas markeru pēc 3D render reference, ko iedeva lietotājs:
+- Zilais "14D" extra-bold ar nedaudz negative letter-spacing
+- Brūnā kartona kaste ar ".lv" pa labi no "D", pārklājas ar -ml-1.5
+- Tape josla kastes augšā
+
+**Animācija:** Kaste ik 4.5s "izlec" no aiz D — translateX 5 px + rotate -4° + scale 1.04 ar overshoot, tad atgriežas. 78% no cikla statiski (nav jittery). `prefers-reduced-motion` ievērots.
+
+**Komponents:** [`apps/store/components/layout/Logo.tsx`](../../apps/store/components/layout/Logo.tsx) ar size variants ("sm" footer, "md" header), atkārtoti izmantots Header desktop + mobile drawer + Footer.
+
+**Kāpēc:**
+- Bran identitāte ar 14D ir vizuāli atpazīstams
+- ".lv" pateic domēnu uzreiz
+- Kaste ar tape vizualizē brand stāstu (palešu/return preces)
+- Maza animācija dod dzīvīgumu bez uzbāzības
+
 ## 2026-05-24 — Latviski sākotnēji, daudzvalodība vēlāk
 
 **Lēmums:** UI tikai latviski. Produktu lauki ir struktūra ar LV/EN/RU, bet sākumlapu/menu/footer nemēģinām šobrīd lokalizēt.
