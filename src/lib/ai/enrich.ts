@@ -298,6 +298,24 @@ function buildRequest(
   };
 }
 
+/** Anthropic's API occasionally returns 429 (rate limit) or 529 (overloaded)
+ *  under bursty load — common when we parallelise N enrichments at once.
+ *  One retry with a 2s pause keeps us inside the per-batch deadline. */
+async function createWithRetry(
+  client: Anthropic,
+  request: Anthropic.MessageCreateParamsNonStreaming
+): Promise<Anthropic.Message> {
+  try {
+    return await client.messages.create(request);
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    const retryable = status === 429 || status === 529 || status === 503;
+    if (!retryable) throw err;
+    await new Promise((r) => setTimeout(r, 2000));
+    return client.messages.create(request);
+  }
+}
+
 export async function enrichProduct(
   input: EnrichmentInput
 ): Promise<EnrichmentResponse> {
@@ -313,7 +331,7 @@ export async function enrichProduct(
     { role: "user", content: buildUserMessage(input) },
   ];
 
-  let response = await client.messages.create(buildRequest(messages));
+  let response = await createWithRetry(client, buildRequest(messages));
 
   let resumes = 0;
   // Server-side web tools run their own loop on Anthropic's side. If they
@@ -322,7 +340,7 @@ export async function enrichProduct(
   while (response.stop_reason === "pause_turn" && resumes < MAX_RESUME_ITERATIONS) {
     resumes += 1;
     messages.push({ role: "assistant", content: response.content });
-    response = await client.messages.create(buildRequest(messages));
+    response = await createWithRetry(client, buildRequest(messages));
   }
 
   if (response.stop_reason === "refusal") {

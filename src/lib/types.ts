@@ -332,6 +332,35 @@ export interface AuditLog {
   createdAt: Timestamp | null;
 }
 
+// ---------- AI budget ----------
+
+/** Per-calendar-day spend rollup. Document id = YYYY-MM-DD (Europe/Riga). */
+export interface AiCostStats {
+  date: string;
+  totalCostUsd: number;
+  productCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationInputTokens: number;
+  cacheReadInputTokens: number;
+  updatedAt: Timestamp | null;
+}
+
+/** Singleton at `system/aiBudget`. Editable by MASTER only. */
+export interface AiBudgetConfig {
+  /** Hard daily cap in USD. Enrichment requests refuse once today's spend
+   *  meets or exceeds this. Default 50. */
+  dailyCapUsd: number;
+  /** Optional price overrides (USD per 1M tokens). Falls back to
+   *  DEFAULT_PRICE_PER_M_TOKENS in lib/ai/pricing.ts when unset. */
+  pricePerInputUsd?: number;
+  pricePerOutputUsd?: number;
+  pricePerCacheCreationUsd?: number;
+  pricePerCacheReadUsd?: number;
+  updatedAt: Timestamp | null;
+  updatedBy: string | null;
+}
+
 // ---------- Future: Shopify connection placeholder ----------
 
 export interface ShopifyConnection {

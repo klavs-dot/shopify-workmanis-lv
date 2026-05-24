@@ -3,10 +3,24 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { enrichProduct } from "@/lib/ai/enrich";
+import {
+  budgetExceededReason,
+  getBudgetSnapshot,
+  recordSpend,
+} from "@/lib/ai/budgetServer";
 import type { Pallet, Product, UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 800; // Vercel Pro Node.js cap
+
+/** How many product enrichments to run in parallel. Sequential mode (=1) was
+ *  taking ~20 min for 25 products; with 5 workers it drops to ~5 min while
+ *  staying inside Anthropic's standard tier rate limits. Override via env. */
+const AI_CONCURRENCY = (() => {
+  const raw = parseInt(process.env.AI_CONCURRENCY ?? "5", 10);
+  if (!Number.isFinite(raw) || raw < 1) return 5;
+  return Math.min(raw, 20);
+})();
 
 interface CallerInfo {
   callerUid: string;
@@ -131,6 +145,22 @@ export async function POST(req: Request) {
       });
     }
 
+    // Budget guard — refuse upfront if today's spend has already hit the cap.
+    let budget = await getBudgetSnapshot();
+    const exceeded = budgetExceededReason(budget);
+    if (exceeded) {
+      if (isAuto) {
+        await palletRef.update({
+          autoEnrichmentCompletedAt: FieldValue.serverTimestamp(),
+          autoEnrichmentSucceeded: 0,
+          autoEnrichmentFailed: 0,
+          autoEnrichmentError: exceeded,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return NextResponse.json({ error: exceeded }, { status: 429 });
+    }
+
     // Pull products. If `rerun` is false, we only touch ones that haven't been
     // enriched yet (and haven't been disposed).
     const productsSnap = await db
@@ -151,8 +181,12 @@ export async function POST(req: Request) {
     candidates = candidates.slice(0, limit);
 
     const results: PerProductResult[] = [];
+    /** Re-fetched between batches so a mid-run cap change kicks in promptly. */
+    let budgetStopped = false;
 
-    for (const product of candidates) {
+    /** Single-product worker. Self-contained so we can run N of these in
+     *  parallel via Promise.all. */
+    async function processProduct(product: Product): Promise<PerProductResult> {
       const productRef = db.collection("products").doc(product.id);
       try {
         await productRef.update({
@@ -201,6 +235,14 @@ export async function POST(req: Request) {
         }
         await productRef.update(updateFields);
 
+        // Atomically add this call's cost. Non-fatal on failure.
+        let costUsd: number | null = null;
+        try {
+          costUsd = await recordSpend(usage, budget.prices);
+        } catch (e) {
+          console.warn("recordSpend failed", e);
+        }
+
         await db.collection("auditLogs").add({
           userId: callerUid,
           userEmail: callerEmail,
@@ -214,17 +256,18 @@ export async function POST(req: Request) {
             suggestedCategory: enriched.suggestedCategory,
             notes: enriched.notes ?? null,
             usage,
+            costUsd,
             via: isAuto ? "auto-enrich-pallet" : "enrich-pallet",
           },
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        results.push({
+        return {
           productId: product.id,
           ok: true,
           confidenceScore: enriched.confidenceScore,
           enrichedImagesCount: enriched.enrichedImages.length,
-        });
+        };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await productRef.update({
@@ -244,8 +287,22 @@ export async function POST(req: Request) {
           },
           createdAt: FieldValue.serverTimestamp(),
         });
-        results.push({ productId: product.id, ok: false, error: msg });
+        return { productId: product.id, ok: false, error: msg };
       }
+    }
+
+    // Process in batches of AI_CONCURRENCY. Before each batch we re-check the
+    // budget so a freshly-edited cap takes effect mid-run.
+    for (let i = 0; i < candidates.length; i += AI_CONCURRENCY) {
+      budget = await getBudgetSnapshot();
+      const stopReason = budgetExceededReason(budget);
+      if (stopReason) {
+        budgetStopped = true;
+        break;
+      }
+      const batch = candidates.slice(i, i + AI_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(processProduct));
+      results.push(...batchResults);
     }
 
     const succeeded = results.filter((r) => r.ok).length;
@@ -257,6 +314,9 @@ export async function POST(req: Request) {
         autoEnrichmentCompletedAt: FieldValue.serverTimestamp(),
         autoEnrichmentSucceeded: succeeded,
         autoEnrichmentFailed: failed,
+        autoEnrichmentError: budgetStopped
+          ? "Budget cap pārsniegts — apturēts pirms visu produktu pabeigšanas"
+          : null,
         updatedAt: FieldValue.serverTimestamp(),
       });
       await db.collection("auditLogs").add({
@@ -266,7 +326,13 @@ export async function POST(req: Request) {
         entityType: "pallet",
         entityId: body.palletId,
         before: null,
-        after: { succeeded, failed, via: "auto-claim" },
+        after: {
+          succeeded,
+          failed,
+          via: "auto-claim",
+          concurrency: AI_CONCURRENCY,
+          budgetStopped,
+        },
         createdAt: FieldValue.serverTimestamp(),
       });
     }
@@ -277,6 +343,8 @@ export async function POST(req: Request) {
       succeeded,
       failed,
       results,
+      concurrency: AI_CONCURRENCY,
+      budgetStopped,
     });
   } catch (err) {
     const e = err as Error & { status?: number };

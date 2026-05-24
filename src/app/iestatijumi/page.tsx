@@ -50,6 +50,11 @@ function IestatijumiContent() {
               : "Izveidot Warehouse darbinieku."
           }
         />
+        <Card
+          href="/iestatijumi/ai-budget"
+          title="AI budžets"
+          desc="Šodienas tēriņi + dienas limits (Claude Opus 4.7 enrichment)."
+        />
         {isMaster && (
           <>
             <Card

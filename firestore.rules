@@ -99,5 +99,21 @@ service cloud.firestore {
     match /shopifyConnections/{id} {
       allow read, write: if isMaster() || isAdmin();
     }
+
+    // -------- AI cost stats (daily spend rollup) --------
+    // Read: MASTER+ADMIN see the running spend on the Iestatījumi page.
+    // Write: server only (firebase-admin SDK bypasses these rules).
+    match /aiCostStats/{date} {
+      allow read:  if isMaster() || isAdmin();
+      allow write: if false;
+    }
+
+    // -------- System singletons (AI budget config, etc.) --------
+    // Read: MASTER+ADMIN.
+    // Write: MASTER only.
+    match /system/{docId} {
+      allow read:  if isMaster() || isAdmin();
+      allow write: if isMaster();
+    }
   }
 }

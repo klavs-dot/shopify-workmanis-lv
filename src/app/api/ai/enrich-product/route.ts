@@ -3,6 +3,11 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { enrichProduct } from "@/lib/ai/enrich";
+import {
+  budgetExceededReason,
+  getBudgetSnapshot,
+  recordSpend,
+} from "@/lib/ai/budgetServer";
 import type { Product, UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -48,6 +53,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Produkts nav atrasts" }, { status: 404 });
     }
     const product = productSnap.data() as Omit<Product, "id">;
+
+    // Budget guard — refuse upfront if today's spend has already hit the cap.
+    const budget = await getBudgetSnapshot();
+    const exceeded = budgetExceededReason(budget);
+    if (exceeded) {
+      return NextResponse.json({ error: exceeded }, { status: 429 });
+    }
 
     // Optimistically mark as in-progress so concurrent triggers are visible.
     await productRef.update({
@@ -111,6 +123,15 @@ export async function POST(req: Request) {
 
       await productRef.update(updateFields);
 
+      // Record the spend for today's running total. Failure here is non-fatal:
+      // the product is already enriched; budget tracking just misses one call.
+      let costUsd: number | null = null;
+      try {
+        costUsd = await recordSpend(usage, budget.prices);
+      } catch (e) {
+        console.warn("recordSpend failed", e);
+      }
+
       await db.collection("auditLogs").add({
         userId: callerUid,
         userEmail: callerEmail,
@@ -126,11 +147,12 @@ export async function POST(req: Request) {
           suggestedCategory: enriched.suggestedCategory,
           notes: enriched.notes ?? null,
           usage,
+          costUsd,
         },
         createdAt: FieldValue.serverTimestamp(),
       });
 
-      return NextResponse.json({ ok: true, enriched, usage });
+      return NextResponse.json({ ok: true, enriched, usage, costUsd });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await productRef.update({
