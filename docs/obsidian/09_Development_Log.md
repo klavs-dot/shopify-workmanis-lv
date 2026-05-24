@@ -2,6 +2,24 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Robot logo bagātāka animācija (4 → 15+ slāņi)
+
+**Veikts:** RobotLogo SVG pārtaisīts ar 15+ neatkarīgiem motion layeriem (coprime ciklu garumi: 1.3 / 1.7 / 2.1 / 3.7 / 4.3 / 4.5 / 5.2 / 5.9 / 7.3 / 8.1 / 9.7 / 11.3 / 13.1 / 17.9 / 19 s). Jo cikli nesinhronizējas, kustība praktiski nekad neatkārtojas — lietotājs vienmēr redz svaigu kombināciju.
+
+Jauni slāņi (papildus iepriekšējiem 4):
+- Korpuss arī side sway (±1.5°)
+- Liels lēciens reizi 18 sekundēs ("yay")
+- Antena pati sway (atsevišķi no LED pulse)
+- Acu zīlītes "look" left/right ar dažādiem cikliem (asimetriska)
+- Wink (tikai kreisā acs, rets — 19s)
+- Mute reizēm uzsmaida
+- Pen tap pauze, kas pārtrauc scribble
+- Klipboards viegli sasveras
+- ✨ Sparkle pie pildspalvas gala
+- Labā kāja reizēm tap
+
+Skat [[12_Branding]] pilno animāciju tabulu.
+
 ## 2026-05-24 — Sadaļas "Approval" noņemšana
 
 **Veikts:**
