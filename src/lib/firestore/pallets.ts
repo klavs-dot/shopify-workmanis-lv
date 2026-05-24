@@ -43,10 +43,15 @@ export interface CreatePalletInput {
   palletCondition: string | null;
   coverImage: string | null;
   createdBy: string;
+  /** Optional pre-assignment to a Warehouse worker chosen at upload time. */
+  assignedWarehouseUid?: string | null;
+  assignedWarehouseEmail?: string | null;
+  assignedWarehouseName?: string | null;
 }
 
 export async function createPallet(input: CreatePalletInput): Promise<string> {
   if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
+  const assignedUid = input.assignedWarehouseUid ?? null;
   const ref = await addDoc(collection(firebaseDb, "pallets"), {
     ...input,
     // Default to in_transit — manifest is in our system, but the physical
@@ -57,10 +62,33 @@ export async function createPallet(input: CreatePalletInput): Promise<string> {
     sortingClaimedByEmail: null,
     sortingClaimedByName: null,
     sortingClaimedAt: null,
+    assignedWarehouseUid: assignedUid,
+    assignedWarehouseEmail: input.assignedWarehouseEmail ?? null,
+    assignedWarehouseName: input.assignedWarehouseName ?? null,
+    assignedWarehouseAt: assignedUid ? serverTimestamp() : null,
+    assignedBy: assignedUid ? input.createdBy : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Pre-assign or re-assign a pallet to a warehouse worker. Stamps the
+ *  serverTimestamp for the assignment event. */
+export async function assignPalletToWarehouse(
+  palletId: string,
+  worker: Pick<AppUser, "uid" | "email" | "displayName">,
+  assignedBy: string
+): Promise<void> {
+  if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
+  await updateDoc(doc(firebaseDb, "pallets", palletId), {
+    assignedWarehouseUid: worker.uid,
+    assignedWarehouseEmail: worker.email,
+    assignedWarehouseName: worker.displayName || worker.email,
+    assignedWarehouseAt: serverTimestamp(),
+    assignedBy,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /** Claim a pallet for sorting — only the claimer (or MASTER) can later
@@ -92,7 +120,38 @@ export async function releasePalletSortingClaim(palletId: string): Promise<void>
 }
 
 /** Mark a pallet as physically received at the warehouse. Called from the
- *  Loģistika "Saņemts! Nosūtīt uz šķirošanu!" button. */
+ *  Loģistika "Saņemts! Nosūtīt uz šķirošanu!" button.
+ *
+ *  If the pallet was pre-assigned to a warehouse worker at upload time, this
+ *  also auto-claims it for that worker so it shows up on their Šķirošana
+ *  board ready to open. Workers without a pre-assignment go to the free pool. */
+export async function markPalletReceivedAutoClaim(
+  id: string,
+  pallet: Pick<
+    Pallet,
+    | "assignedWarehouseUid"
+    | "assignedWarehouseEmail"
+    | "assignedWarehouseName"
+    | "sortingClaimedBy"
+  >
+): Promise<void> {
+  if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
+  const patch: Record<string, unknown> = {
+    status: "imported" satisfies PalletStatus,
+    updatedAt: serverTimestamp(),
+  };
+  // Only auto-claim if a pre-assignment exists AND nobody has already grabbed
+  // this pallet manually (defensive — shouldn't happen in normal flow).
+  if (pallet.assignedWarehouseUid && !pallet.sortingClaimedBy) {
+    patch.sortingClaimedBy = pallet.assignedWarehouseUid;
+    patch.sortingClaimedByEmail = pallet.assignedWarehouseEmail ?? null;
+    patch.sortingClaimedByName = pallet.assignedWarehouseName ?? null;
+    patch.sortingClaimedAt = serverTimestamp();
+  }
+  await updateDoc(doc(firebaseDb, "pallets", id), patch);
+}
+
+/** Old non-claiming variant — kept for any caller that still uses it. */
 export async function markPalletReceived(id: string): Promise<void> {
   await updatePallet(id, { status: "imported" });
 }

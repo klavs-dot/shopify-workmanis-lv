@@ -77,6 +77,16 @@ export interface Pallet {
   sortingClaimedByName: string | null;
   sortingClaimedAt: Timestamp | null;
 
+  /** Pre-assignment chosen by ADMIN/MASTER at manifest-upload time. When the
+   *  pallet is marked received in Loģistika, this worker is auto-claimed as
+   *  the sorter. Null = workers free-pick on the Šķirošana board. */
+  assignedWarehouseUid: string | null;
+  assignedWarehouseEmail: string | null;
+  assignedWarehouseName: string | null;
+  assignedWarehouseAt: Timestamp | null;
+  /** Uid of the admin/master who made the assignment. */
+  assignedBy: string | null;
+
   status: PalletStatus;
   createdBy: string;
   createdAt: Timestamp | null;
@@ -253,6 +263,7 @@ export type AuditAction =
   | "pallet_received"           // logistics → received → sent to sorting
   | "pallet_sorting_claimed"    // worker took responsibility for sorting
   | "pallet_sorting_released"   // claim released (by claimer or MASTER override)
+  | "pallet_assigned_to_warehouse" // ADMIN/MASTER pre-assigned a sorter at upload
   | "pallet_jobalots_synced"
   | "product_created"
   | "product_approved"

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   History,
   Settings,
+  Users,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -44,6 +45,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/products", label: "Produkti veikalā", icon: Package },
     { href: "/utilizetas", label: "Utilizētās preces", icon: Trash2 },
     { href: "/darbibu-vesture", label: "Darbību vēsture", icon: History },
+    {
+      href: "/noliktavas-darbinieki",
+      label: "Noliktavas darbinieki",
+      icon: Users,
+      visible: () => appUser?.role === "MASTER" || appUser?.role === "ADMIN",
+    },
     {
       href: "/iestatijumi",
       label: "Iestatījumi",

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { listPallets, markPalletReceived } from "@/lib/firestore/pallets";
+import { listPallets, markPalletReceivedAutoClaim } from "@/lib/firestore/pallets";
 import { logAudit } from "@/lib/firestore/audit";
 import { hasPermission } from "@/lib/auth/roles";
 import type { Pallet } from "@/lib/types";
@@ -51,7 +51,7 @@ function LogistikaContent() {
     if (!appUser) return;
     setBusyId(pallet.id);
     try {
-      await markPalletReceived(pallet.id);
+      await markPalletReceivedAutoClaim(pallet.id, pallet);
       await logAudit({
         userId: appUser.uid,
         userEmail: appUser.email,
@@ -59,9 +59,28 @@ function LogistikaContent() {
         entityType: "pallet",
         entityId: pallet.id,
         before: { status: "in_transit" },
-        after: { status: "imported" },
+        after: {
+          status: "imported",
+          autoClaimedTo: pallet.assignedWarehouseUid ?? null,
+        },
       });
-      setToast(`Palete ${pallet.manifestSku} nosūtīta uz Šķirošanu ✓`);
+      if (pallet.assignedWarehouseUid && !pallet.sortingClaimedBy) {
+        await logAudit({
+          userId: appUser.uid,
+          userEmail: appUser.email,
+          action: "pallet_sorting_claimed",
+          entityType: "pallet",
+          entityId: pallet.id,
+          after: {
+            claimedTo: pallet.assignedWarehouseUid,
+            via: "auto-from-assignment",
+          },
+        });
+      }
+      const tail = pallet.assignedWarehouseName
+        ? ` → ${pallet.assignedWarehouseName}`
+        : "";
+      setToast(`Palete ${pallet.manifestSku} nosūtīta uz Šķirošanu ✓${tail}`);
       await refresh();
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Kļūda");
@@ -160,6 +179,12 @@ function LogistikaContent() {
                     </>
                   )}
                 </div>
+                {p.assignedWarehouseName && (
+                  <div className="mt-1 text-[11px] text-emerald-800">
+                    Pēc saņemšanas auto-piešķirs:{" "}
+                    <span className="font-semibold">{p.assignedWarehouseName}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex shrink-0 items-center gap-2">

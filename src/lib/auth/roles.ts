@@ -13,6 +13,7 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/utilizetas/,
     /^\/darbibu-vesture/,
     /^\/iestatijumi/,
+    /^\/noliktavas-darbinieki/,
     /^\/settings\/profile/,
   ],
   WAREHOUSE: [

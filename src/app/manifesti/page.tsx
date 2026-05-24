@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UploadCloud, FileSpreadsheet, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -14,8 +14,14 @@ import {
 } from "@/lib/manifest";
 import { createPallet, listPallets } from "@/lib/firestore/pallets";
 import { bulkInsertProductsForPallet, listProducts } from "@/lib/firestore/products";
+import { listUsers } from "@/lib/firestore/users";
 import { logAudit } from "@/lib/firestore/audit";
-import type { ImportSummary, Pallet, Product } from "@/lib/types";
+import {
+  buildWorkerStats,
+  recommendWorker,
+  type WorkerMonthStats,
+} from "@/lib/warehouseStats";
+import type { AppUser, ImportSummary, Pallet, Product } from "@/lib/types";
 
 const JOBALOTS_URL_PATTERN =
   /^https?:\/\/(www\.)?jobalots\.com\/[a-z]{2}\/products\/[A-Z0-9]+/i;
@@ -68,6 +74,12 @@ function ManifestUploader() {
   const [purchasePriceStr, setPurchasePriceStr] = useState("");
   const [source, setSource] = useState("Jobalots");
 
+  // Warehouse pre-assignment (auto-recommended, can be overridden).
+  const [workers, setWorkers] = useState<AppUser[]>([]);
+  const [workerStats, setWorkerStats] = useState<WorkerMonthStats[]>([]);
+  const [assignedUid, setAssignedUid] = useState<string>(""); // "" = let workers pick
+  const [workersLoaded, setWorkersLoaded] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [palletId, setPalletId] = useState<string | null>(null);
@@ -79,6 +91,37 @@ function ManifestUploader() {
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const [dragging, setDragging] = useState(false);
+
+  // Load warehouse workers + their current-month load once, so the dropdown
+  // is ready by the time the user finishes filling the form.
+  useEffect(() => {
+    (async () => {
+      try {
+        const [allUsers, pallets, products] = await Promise.all([
+          listUsers(),
+          listPallets(),
+          listProducts({ limitTo: 2000 }),
+        ]);
+        const wh = allUsers.filter(
+          (u) => u.role === "WAREHOUSE" && u.status === "active"
+        );
+        setWorkers(wh);
+        const stats = buildWorkerStats(wh, pallets, products);
+        setWorkerStats(stats);
+        const rec = recommendWorker(stats);
+        if (rec) setAssignedUid(rec.uid);
+      } catch {
+        // Non-fatal — assignment is optional.
+      } finally {
+        setWorkersLoaded(true);
+      }
+    })();
+  }, []);
+
+  const recommendedUid = useMemo(
+    () => recommendWorker(workerStats)?.uid ?? null,
+    [workerStats]
+  );
 
   const urlOk = !jobalotsUrl || JOBALOTS_URL_PATTERN.test(jobalotsUrl.trim());
 
@@ -227,6 +270,8 @@ function ManifestUploader() {
           ? purchasePriceParsed
           : lookup?.latestBidPrice ?? null;
 
+      const assignedWorker = workers.find((w) => w.uid === assignedUid) ?? null;
+
       const newPalletId = await createPallet({
         manifestSku: parsedPreview.manifestSku,
         name: palletName || lookup?.title || parsedPreview.manifestSku,
@@ -247,6 +292,10 @@ function ManifestUploader() {
           parsedPreview.rows.find((r) => r.manifestImages.length > 0)?.manifestImages[0] ||
           null,
         createdBy: appUser.uid,
+        assignedWarehouseUid: assignedWorker?.uid ?? null,
+        assignedWarehouseEmail: assignedWorker?.email ?? null,
+        assignedWarehouseName:
+          assignedWorker?.displayName || assignedWorker?.email || null,
       });
       const { inserted } = await bulkInsertProductsForPallet(
         newPalletId,
@@ -279,6 +328,20 @@ function ManifestUploader() {
           purchasePrice,
         },
       });
+      if (assignedWorker) {
+        await logAudit({
+          userId: appUser.uid,
+          userEmail: appUser.email,
+          action: "pallet_assigned_to_warehouse",
+          entityType: "pallet",
+          entityId: newPalletId,
+          after: {
+            assignedUid: assignedWorker.uid,
+            assignedEmail: assignedWorker.email,
+            assignedName: assignedWorker.displayName || assignedWorker.email,
+          },
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Imports neizdevās");
     } finally {
@@ -493,6 +556,45 @@ function ManifestUploader() {
           />
         </Field>
 
+        <Field label="Šķiros (noliktavas darbinieks)">
+          {!workersLoaded ? (
+            <div className="text-xs text-slate-500">Lasa darbinieku slodzi…</div>
+          ) : workers.length === 0 ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Nav aktīvu Warehouse darbinieku. Pievieno{" "}
+              <Link
+                href="/noliktavas-darbinieki"
+                className="font-semibold underline-offset-2 hover:underline"
+              >
+                Noliktavas darbinieku sadaļā
+              </Link>
+              .
+            </div>
+          ) : (
+            <>
+              <select
+                value={assignedUid}
+                onChange={(e) => setAssignedUid(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">— darbinieki paši izvēlēsies šķirošanā —</option>
+                {workerStats.map((s) => (
+                  <option key={s.uid} value={s.uid}>
+                    {s.displayName} · šomēn potenc. peļņa{" "}
+                    {s.potentialProfitEur.toFixed(0)} EUR
+                    {recommendedUid === s.uid ? " · ⭐ rekomendēts" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Rekomendācija = darbinieks ar mazāko potenciālo peļņu šomēnes
+                (sabalansē slodzi). Vari izvēlēties citu vai atstāt tukšu — tad
+                darbinieki paši paņems Šķirošanā.
+              </p>
+            </>
+          )}
+        </Field>
+
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800">
             {error}
@@ -696,8 +798,10 @@ function buildCardData(pallet: Pallet, products: Product[]): ManifestCardData {
 function ManifestCard({ data }: { data: ManifestCardData }) {
   const { pallet } = data;
   const inTransit = pallet.status === "in_transit";
-  // Predicted profit heuristic: 50% of the planned selling-prices sum.
-  const predictedProfit = data.totalFinalPrice * 0.5;
+  // Predicted profit heuristic: 50% of the manifest's total RRP (gross retail).
+  // Simpler than tracking each product's planned selling price and works
+  // before any pricing has been done.
+  const predictedProfit = pallet.totalReferencePrice * 0.5;
   // Actual realised P&L = soldRevenue − purchasePrice (when known).
   const realisedPnL =
     pallet.purchasePrice != null
@@ -773,15 +877,20 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
         <Dd tabular>
           {pallet.totalReferencePrice.toFixed(2)} {pallet.currency}
         </Dd>
-        <Dt>Plānotā cenu summa</Dt>
-        <Dd tabular>
-          {data.totalFinalPrice.toFixed(2)} {pallet.currency}
-        </Dd>
-        <Dt>Prognozētā peļņa (50%)</Dt>
+        <Dt>Prognozētā peļņa (50% no RRP)</Dt>
         <Dd tabular className="font-semibold text-emerald-700">
           {predictedProfit.toFixed(2)} {pallet.currency}
         </Dd>
       </dl>
+
+      {pallet.assignedWarehouseName && (
+        <div className="mt-2 text-[11px] text-slate-600">
+          Šķiros:{" "}
+          <span className="font-medium text-slate-900">
+            {pallet.assignedWarehouseName}
+          </span>
+        </div>
+      )}
 
       <div className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-700">
         Pārdotas <strong className="tabular">{data.soldCount}</strong> gab., ietirgots{" "}
@@ -815,7 +924,7 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
         />
         <FilterPill
           href={`/skirosana/${pallet.id}?listing=not_listed`}
-          label="Nav veikalā"
+          label="Šķirotavā"
           count={data.notListedCount}
           tone="slate"
         />

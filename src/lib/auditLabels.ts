@@ -11,6 +11,7 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   pallet_received: "Palete saņemta noliktavā",
   pallet_sorting_claimed: "Paņemta šķirot",
   pallet_sorting_released: "Atbrīvota no šķirošanas",
+  pallet_assigned_to_warehouse: "Piešķirta darbiniekam",
   pallet_jobalots_synced: "Sinhronizēta ar Jobalots",
   product_created: "Izveidots produkts",
   product_approved: "Apstiprināts produkts",
