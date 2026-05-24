@@ -39,7 +39,7 @@ function LoginInner() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col items-center text-center">
-          <RobotLogo className="h-24 w-24" />
+          <RobotLogo className="h-48 w-48" />
           <h1 className="mt-2 text-lg font-semibold text-slate-900">
             shopify.workmanis.lv
           </h1>

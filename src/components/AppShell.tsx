@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             href="/dashboard"
             className="flex flex-col items-center gap-2 text-center"
           >
-            <RobotLogo className="h-16 w-16" />
+            <RobotLogo className="h-32 w-32" />
             <div>
               <div className="text-sm font-semibold text-slate-900">
                 shopify.workmanis.lv
@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="border-b border-slate-200 bg-white px-4 py-3 md:hidden">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <RobotLogo className="h-8 w-8 shrink-0" />
+              <RobotLogo className="h-16 w-16 shrink-0" />
               <span className="text-sm font-semibold">shopify.workmanis.lv</span>
             </Link>
             {appUser && (
