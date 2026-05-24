@@ -1,24 +1,38 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { Send } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
 
-// Hero with autoplay video background + Messenger-style chat bubble:
-// - Question bubble pre-rendered ("Kāpēc tik lēti?")
-// - User clicks "Skatīt atbildi" → answer bubble pops in (with sound + slide-up)
+// Hero — full-bleed video bg with a Messenger-style Q&A that drives the
+// whole hero. No marketing copy on the left; the chat IS the pitch.
 //
-// The answer is the brand's elevator pitch — these are returned / undelivered
-// packages from major online retailers, hence the prices.
+// Sequential reveal: question 1 + button → click → answer 1 + question 2 +
+// button → click → answer 2 + question 3 + button → click → answer 3. Each
+// answer also fires a synthesised "pop" sound.
+
+const QA: Array<{ q: string; a: string }> = [
+  {
+    q: "Kāpēc tik lēti?",
+    a: "Šīs ir preces, kuras nav izņemtas pastā, nav atradies saņēmējs vai citādi atgrieztas lielākajos pasaules interneta veikalos.",
+  },
+  {
+    q: "Kur atrodas noliktava?",
+    a: "Preces jau ir Latvijas noliktavā un tiek izsūtītas tajā pašā vai nākamajā dienā.",
+  },
+  {
+    q: "Cik bieži papildinās preces?",
+    a: "Katru darba dienu, vairākas reizes dienā.",
+  },
+];
 
 export function Hero() {
-  const [showAnswer, setShowAnswer] = useState(false);
+  // How many answers have been revealed. The widget shows the next pending
+  // question + reveal button until all three are answered.
+  const [answered, setAnswered] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  /** Tiny synthesised "messenger pop" — two stacked sines with a fast decay.
-   *  Avoids shipping an mp3 and stays under 2 KB of code. */
   const playPop = () => {
     try {
       const Ctx =
@@ -31,7 +45,6 @@ export function Hero() {
       if (ctx.state === "suspended") void ctx.resume();
       const now = ctx.currentTime;
 
-      // Punchy body — sine sweeps from 1100 → 600 Hz over ~80 ms
       const o1 = ctx.createOscillator();
       const g1 = ctx.createGain();
       o1.type = "sine";
@@ -44,7 +57,6 @@ export function Hero() {
       o1.start(now);
       o1.stop(now + 0.25);
 
-      // High shimmer on top — 1800 Hz sine for the "click" attack
       const o2 = ctx.createOscillator();
       const g2 = ctx.createGain();
       o2.type = "sine";
@@ -56,18 +68,19 @@ export function Hero() {
       o2.start(now);
       o2.stop(now + 0.1);
     } catch {
-      // Audio is a nice-to-have — never let it block the visual reveal.
+      /* audio is optional */
     }
   };
 
   const reveal = () => {
-    setShowAnswer(true);
+    setAnswered((n) => Math.min(n + 1, QA.length));
     playPop();
   };
 
+  const allDone = answered >= QA.length;
+
   return (
     <section className="relative isolate overflow-hidden bg-neutral-900 text-white">
-      {/* Background video */}
       <video
         autoPlay
         muted
@@ -79,76 +92,57 @@ export function Hero() {
       >
         <source src="/hero.mp4" type="video/mp4" />
       </video>
-      {/* Dark gradient overlay — keeps text/bubble readable over any frame */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/45 to-black/25"
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/45 to-black/70"
       />
 
-      <Container className="grid min-h-[440px] gap-8 py-14 md:min-h-[520px] md:grid-cols-[1.1fr_1fr] md:items-center md:py-20">
-        {/* Left — pitch + CTAs */}
-        <div>
-          <h1 className="text-3xl font-extrabold leading-tight tracking-tight md:text-5xl">
-            Outlet, atvērtas preces un palešu atradumi
-          </h1>
-          <p className="mt-3 max-w-xl text-sm text-neutral-200 md:text-base">
-            Atlaides līdz{" "}
-            <span className="font-bold text-white">90%</span> no oriģinālās
-            cenas. Ierobežots daudzums — paspēj pirms pazūd.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              href="/products"
-              className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-100"
-            >
-              Skatīt produktus
-            </Link>
-            <Link
-              href="/categories"
-              className="rounded-md border border-white/30 px-5 py-2.5 text-sm font-medium text-white transition hover:border-white/60 hover:bg-white/10"
-            >
-              Kategorijas
-            </Link>
-          </div>
-        </div>
+      <Container className="flex min-h-[600px] items-center py-14 md:min-h-[680px] md:py-20">
+        <div className="mx-auto w-full max-w-2xl space-y-4 md:space-y-5">
+          {QA.map((pair, i) => {
+            const showQuestion = i <= answered;
+            const showAnswer = i < answered;
+            if (!showQuestion) return null;
+            return (
+              <div key={i} className="space-y-3 md:space-y-4">
+                {/* Customer question — left */}
+                <div className="bubble-in flex items-end gap-2.5 md:gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-neutral-700 text-sm font-bold uppercase text-white md:h-12 md:w-12">
+                    ?
+                  </div>
+                  <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-white px-5 py-3 text-base font-medium text-neutral-900 shadow-xl md:px-6 md:py-4 md:text-lg">
+                    {pair.q}
+                  </div>
+                </div>
 
-        {/* Right — messenger-style chat */}
-        <div className="flex w-full justify-center md:justify-end">
-          <div className="w-full max-w-sm space-y-3">
-            {/* Customer (incoming) bubble — left side, white */}
-            <div className="flex items-end gap-2">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-700 text-[10px] font-bold uppercase text-white">
-                ?
+                {/* Brand answer — right, with pop animation */}
+                {showAnswer && (
+                  <div className="bubble-in flex items-end justify-end gap-2.5 md:gap-3">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-blue-500 px-5 py-3 text-base text-white shadow-xl md:px-6 md:py-4 md:text-lg">
+                      {pair.a}
+                    </div>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-bold uppercase text-white md:h-12 md:w-12 md:text-sm">
+                      14D
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="relative max-w-[80%] rounded-2xl rounded-bl-sm bg-white px-4 py-2.5 text-sm text-neutral-900 shadow-lg">
-                Kāpēc tik lēti?
-              </div>
-            </div>
+            );
+          })}
 
-            {!showAnswer ? (
-              /* Reveal button — looks like a messenger "send" input */
+          {/* Reveal button — visible while there are pending answers */}
+          {!allDone && (
+            <div className="bubble-in flex justify-start pl-[3.25rem] md:pl-[3.75rem]">
               <button
                 type="button"
                 onClick={reveal}
-                className="ml-10 inline-flex items-center gap-2 rounded-full bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-600 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-xl transition hover:bg-blue-600 active:scale-95 md:text-base"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4 md:h-5 md:w-5" />
                 Skatīt atbildi
               </button>
-            ) : (
-              /* Answer (outgoing) bubble — right side, brand colour, animated in */
-              <div className="bubble-in flex items-end justify-end gap-2">
-                <div className="relative max-w-[85%] rounded-2xl rounded-br-sm bg-blue-500 px-4 py-2.5 text-sm text-white shadow-lg">
-                  Šīs ir preces, kuras nav izņemtas pastā, nav atradies
-                  saņēmējs vai citādi atgrieztas lielākajos pasaules interneta
-                  veikalos.
-                </div>
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-600 text-[10px] font-bold uppercase text-white">
-                  14D
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Container>
     </section>
