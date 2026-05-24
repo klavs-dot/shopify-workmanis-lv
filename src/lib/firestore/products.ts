@@ -160,8 +160,11 @@ export interface UpdateProductInput {
   images?: string[];
   enrichedImages?: string[];
   enrichedTitle?: string | null;
+  enrichedTitleEn?: string | null;
+  enrichedTitleRu?: string | null;
   descriptionLv?: string | null;
   descriptionEn?: string | null;
+  descriptionRu?: string | null;
 }
 
 export async function updateProduct(id: string, patch: UpdateProductInput): Promise<void> {

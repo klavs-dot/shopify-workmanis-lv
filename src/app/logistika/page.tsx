@@ -8,6 +8,7 @@ import { RequireRole } from "@/lib/auth/RequireRole";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { listPallets, markPalletReceivedAutoClaim } from "@/lib/firestore/pallets";
 import { logAudit } from "@/lib/firestore/audit";
+import { fireAutoEnrich } from "@/lib/ai/autoEnrich";
 import { hasPermission } from "@/lib/auth/roles";
 import type { Pallet } from "@/lib/types";
 
@@ -22,7 +23,7 @@ export default function LogistikaPage() {
 }
 
 function LogistikaContent() {
-  const { appUser } = useAuth();
+  const { appUser, firebaseUser } = useAuth();
   const [pallets, setPallets] = useState<Pallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,12 @@ function LogistikaContent() {
             via: "auto-from-assignment",
           },
         });
+        // Palete tagad ir auto-claim-ota darbiniekam — uzreiz palaist
+        // background enrichment, lai brīdī, kad darbinieks pirmoreiz atvērs
+        // detaļu lapu, AI darbs jau bus sācies (vai pabeigts).
+        if (firebaseUser) {
+          await fireAutoEnrich(firebaseUser, pallet.id);
+        }
       }
       const tail = pallet.assignedWarehouseName
         ? ` → ${pallet.assignedWarehouseName}`

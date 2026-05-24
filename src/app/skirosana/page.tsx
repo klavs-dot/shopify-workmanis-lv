@@ -14,7 +14,9 @@ import {
 import { listProducts } from "@/lib/firestore/products";
 import { Boxes } from "lucide-react";
 import { logAudit } from "@/lib/firestore/audit";
+import { fireAutoEnrich } from "@/lib/ai/autoEnrich";
 import { PalletBadge } from "@/components/StatusBadge";
+import { WritingRobot } from "@/components/RobotMascots";
 import type { Pallet, Product } from "@/lib/types";
 
 interface Row {
@@ -34,7 +36,7 @@ export default function SkirosanaPage() {
 }
 
 function SkirosanaList() {
-  const { appUser } = useAuth();
+  const { appUser, firebaseUser } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,22 @@ function SkirosanaList() {
     void refresh();
   }, []);
 
+  // Poll while any pallet has auto-enrichment in flight, so the card's
+  // "writing robot" overlay disappears as soon as the batch finishes server-side.
+  useEffect(() => {
+    if (!rows) return;
+    const inFlight = rows.some(
+      (r) =>
+        r.pallet.autoEnrichmentStartedAt &&
+        !r.pallet.autoEnrichmentCompletedAt
+    );
+    if (!inFlight) return;
+    const t = setInterval(() => {
+      void refresh();
+    }, 10000);
+    return () => clearInterval(t);
+  }, [rows]);
+
   const visible = useMemo(() => {
     if (!rows) return [];
     if (showAll) return rows;
@@ -81,6 +99,12 @@ function SkirosanaList() {
           sortingClaimedByName: appUser.displayName || appUser.email,
         },
       });
+      // Kick off auto-enrichment in the background. The endpoint stamps
+      // autoEnrichmentStartedAt immediately so the next refresh() picks up
+      // the writing-robot overlay.
+      if (firebaseUser) {
+        await fireAutoEnrich(firebaseUser, pallet.id);
+      }
       await refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Kļūda");
@@ -190,15 +214,24 @@ function PalletCard({
   const { pallet, total, unsorted } = row;
   const claimedByMe = !!currentUid && pallet.sortingClaimedBy === currentUid;
   const claimedBySomeone = !!pallet.sortingClaimedBy;
-  const canOpen = claimedByMe || isMaster;
+  // Auto-enrichment is running when the start timestamp is set but the
+  // completion timestamp isn't. While it's running we hide the "Open" link
+  // and overlay the writing robot — the worker physically cannot open the
+  // pallet until AI has done its pass.
+  const enriching =
+    !!pallet.autoEnrichmentStartedAt && !pallet.autoEnrichmentCompletedAt;
+  const canOpen = (claimedByMe || isMaster) && !enriching;
   // Pulse red if there are still unsorted products on this pallet — i.e.
   // anything that isn't yet listed_in_store / sold / out_of_stock / disposed.
-  const pulse = unsorted > 0;
+  // Suppress during enrichment so the overlay reads cleanly.
+  const pulse = unsorted > 0 && !enriching;
 
   // Card classes
   const baseClasses =
-    "flex flex-col overflow-hidden rounded-lg border-2 bg-white shadow-sm transition";
-  const stateClasses = pulse
+    "relative flex flex-col overflow-hidden rounded-lg border-2 bg-white shadow-sm transition";
+  const stateClasses = enriching
+    ? "border-violet-300"
+    : pulse
     ? "pulse-red-ring"
     : "border-slate-200 hover:border-slate-300 hover:shadow";
 
@@ -250,6 +283,36 @@ function PalletCard({
 
   return (
     <article className={`${baseClasses} ${stateClasses}`}>
+      {/* Enrichment overlay — sits on top of the card while AI is working. */}
+      {enriching && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/95 backdrop-blur-sm">
+          <div className="h-32 w-32">
+            <WritingRobot className="h-full w-full" />
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-semibold text-violet-900">
+              AI bagātina datus…
+            </div>
+            <div className="mt-0.5 text-[11px] text-slate-600">
+              Pievieno bildes, aprakstus LV/EN/RU.
+              <br />
+              Var ilgt 5–20 min.
+            </div>
+            {pallet.autoEnrichmentStartedAt?.toDate && (
+              <div className="mt-1 text-[10px] text-slate-500">
+                Sākts{" "}
+                {pallet.autoEnrichmentStartedAt
+                  .toDate()
+                  .toLocaleTimeString("lv-LV", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {canOpen ? (
         <Link
           href={`/skirosana/${pallet.id}`}

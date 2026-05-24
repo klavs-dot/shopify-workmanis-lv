@@ -1,4 +1,4 @@
-// AI product enrichment using Claude Sonnet 4.6 with the public web tools.
+// AI product enrichment using Claude Opus 4.7 with public web tools.
 //
 // Strategy:
 //   1. Single shot Anthropic SDK call with the dynamic-filtering web_search
@@ -7,9 +7,12 @@
 //      text block (the `output_config.format` constraint), or pauses for
 //      another iteration (`stop_reason === "pause_turn"`).
 //   2. We resume the loop up to MAX_RESUME_ITERATIONS times, then parse.
-//   3. System prompt is wrapped in a `cache_control: ephemeral` block. If
-//      it grows past Sonnet 4.6's 2048-token cache minimum, subsequent
-//      requests in the same 5-minute window read the cache (~10% the price).
+//   3. System prompt is wrapped in a `cache_control: ephemeral` block so
+//      repeated calls in the same 5-minute window read the cache.
+//
+// Model choice: Opus 4.7 — biggest Claude available, materially better at
+// producing fluent Latvian (and Russian) than Sonnet 4.6. Cost per product is
+// higher but the quality jump matters when the worker reads the output.
 //
 // Project: shopify.workmanis.lv  (SEPARATE from Workmanis.lv).
 
@@ -17,8 +20,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import type { ProductCondition } from "@/lib/types";
 
-const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 4096;
+const MODEL = "claude-opus-4-7";
+const MAX_TOKENS = 6000;
 const MAX_RESUME_ITERATIONS = 4;
 
 // JSON schema that the final Claude response must match. Sent via
@@ -30,22 +33,37 @@ const ENRICHMENT_SCHEMA = {
     enrichedTitle: {
       type: "string",
       description:
-        "Clean, properly-cased English title under 80 chars. Strip ALL-CAPS, '!!!', and redundant brand mentions.",
+        "Tīrs, dabīgs LATVIEŠU virsraksts līdz 80 rakstzīmēm. Saglabā brendu un modeli, izņem ALL-CAPS, marketinga frāzes, atkārtotus brendu nosaukumus. Sākt ar lielo burtu.",
+    },
+    enrichedTitleEn: {
+      type: "string",
+      description:
+        "Clean ENGLISH title under 80 characters. Same content as enrichedTitle but in English. Keep brand and model exactly.",
+    },
+    enrichedTitleRu: {
+      type: "string",
+      description:
+        "Чистый РУССКИЙ заголовок до 80 символов. То же содержание, что и enrichedTitle, на русском языке. Сохраните бренд и модель.",
     },
     descriptionLv: {
       type: "string",
       description:
-        "Latvian product description, 150-300 chars. Fluent natural Latvian with diacritics. Sounds like real product copy.",
+        "LATVIEŠU produkta apraksts, 150-300 rakstzīmes. Plūstoši dabīgs latviešu valodā ar diakritikām (āčēģīķļņšūž). Skan kā īsts veikala apraksts. NAV mašīntulkots no angļu valodas. Pareiza locījuma izmantošana.",
     },
     descriptionEn: {
       type: "string",
       description:
-        "English product description, 150-300 chars. Mirrors the Latvian version.",
+        "ENGLISH product description, 150-300 characters. Mirrors the Latvian version's content. Same style.",
+    },
+    descriptionRu: {
+      type: "string",
+      description:
+        "РУССКОЕ описание продукта, 150-300 символов. То же содержание, что и латвийская версия. Натуральный русский язык, не машинный перевод.",
     },
     suggestedCategory: {
       type: "string",
       description:
-        "Shopify category path with 1-3 levels, e.g. 'Home & Kitchen > Lighting'.",
+        "Shopify category path with 1-3 levels, e.g. 'Home & Kitchen > Lighting'. English.",
     },
     enrichedImages: {
       type: "array",
@@ -65,13 +83,17 @@ const ENRICHMENT_SCHEMA = {
     },
     notes: {
       type: "string",
-      description: "Optional flag for warehouse worker (counterfeit suspicion, discontinued, etc.).",
+      description:
+        "Optional warehouse-worker flag (counterfeit suspicion, discontinued, etc.). Latviešu valodā.",
     },
   },
   required: [
     "enrichedTitle",
+    "enrichedTitleEn",
+    "enrichedTitleRu",
     "descriptionLv",
     "descriptionEn",
+    "descriptionRu",
     "suggestedCategory",
     "enrichedImages",
     "sourceUrls",
@@ -80,74 +102,106 @@ const ENRICHMENT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM_PROMPT = `You are an AI product-enrichment assistant for shopify.workmanis.lv — a Shopify-based reseller of Jobalots customer-return and overstock pallets, operating in Latvia. The end shopper browses a Latvian-language store and pays in EUR. Your job is to take raw manifest data for one product at a time and produce polished, ready-to-publish content in both Latvian and English.
+const SYSTEM_PROMPT = `Tu esi AI produktu bagātinātājs šopify.workmanis.lv vajadzībām — Shopify veikalam, kas pārdod Jobalots klientu atgrieztās un palieku paletes Latvijā. Veikals ir trīsvalodu (latviešu, angļu, krievu), galvenais valūta ir EUR, galvenā mērķauditorija ir Latvijas pircēji.
 
-# What you produce for each product
+Tavs darbs: paņemt vienu produktu no manifesta un ģenerēt publicēšanai gatavu saturu visās trijās valodās.
 
-For every call you must return a JSON object that exactly matches the supplied output schema. The fields are:
+# KRITISKI SVARĪGI: LATVIEŠU VALODAS KVALITĀTE
 
-1. **enrichedTitle** — Clean English title under 80 characters. Strip:
-   - SHOUTY ALL-CAPS BLOCKS
-   - "NEW!!!", "BEST DEAL!", marketing bullets
-   - Repeated brand mentions ("Sony Sony Wireless Headphones")
-   - Long parenthetical SKU strings
-   Keep:
-   - Brand, model name, key spec (size, capacity, colour, count) if present
-   Examples:
+Latviešu valoda ir GALVENĀ veikala valoda — to lasīs reāli Latvijas pircēji. Tāpēc:
+
+✅ Lieto pareizas diakritikas: ā č ē ģ ī ķ ļ ņ š ū ž
+✅ Dabīgi latviešu locījumi un teikumu struktūra
+✅ Tehniskie termini latviski, kad iespējams (piem. "skārienjūtīgs ekrāns" nevis "touchscreen")
+✅ Skani kā īsts veikala apraksts, nevis mašīntulkojums
+
+❌ NELIETO: mašīntulkojumu no angļu valodas
+❌ NELIETO: vārdus "lielisks", "perfekts" bez konteksta
+❌ NELIETO: angļu vārdus latviešu tekstā ("bestseller", "must-have")
+❌ NELIETO: emocijus 🎉✨
+
+Krievu valoda — līdzīgi: dabīgs krievs, nevis online translator output.
+
+# Ko tu ražo
+
+Atbildē jābūt JSON objektam, kas atbilst dotajam shēmas formātam. Lauki:
+
+1. **enrichedTitle** (LATVIEŠU virsraksts, līdz 80 rakstzīmēm)
+   - Sākt ar lielo burtu, beigt bez punkta
+   - Iekļauj brendu, modeli, galveno spec (izmērs, ietilpība, krāsa)
+   - Izņem ALL-CAPS blokus, "!!!", atkārtotas brenda mencijas
+   Piemērs:
      Raw: "FENCHILIN Bluetooth large mirror with lighting, 18 dimmer LED lights, makeup mirror with light, Hollywood mirror cosmetic mirror with 10x magnification, table mirror with USB 80x58"
-     Clean: "FENCHILIN Hollywood LED Vanity Mirror with Bluetooth, 10× Magnifier, 80×58 cm"
+     LV: "FENCHILIN Hollywood LED Grima Spogulis ar Bluetooth, 10× Palielinājums, 80×58 cm"
 
-     Raw: "FWFX Electronic Dance Mats for TV - Wireless Music Dance Pad Game for Kids and Adults, Family Dance Games Christmas Birthday Gifts for Boys & Girls..."
-     Clean: "FWFX Wireless Electronic Dance Mat for TV — Family Music Game for Kids and Adults"
+2. **enrichedTitleEn** (English title, under 80 chars)
+   - Same content, English version. Keep brand and model identical.
+   - Same style: brand-model-spec, no marketing fluff.
+   Piemērs no augšas:
+     EN: "FENCHILIN Hollywood LED Vanity Mirror with Bluetooth, 10× Magnifier, 80×58 cm"
 
-2. **descriptionLv** — Latvian product description, 150-300 characters. Real product copy. Mention the most important features, target use, and what makes it desirable. Do NOT use bullet points, do NOT begin with "Šis produkts ir…". Use proper grammar with diacritics (āčēģīķļņšūž). Sample style:
-     "Liela Hollywood stila spogulis ar 18 dimmējamām LED lampām un 10× palielinājuma sekciju. Bluetooth skaļrunis ļauj klausīties mūziku grimējoties. Ideāls grima galda papildinājums mājām vai studijai."
+3. **enrichedTitleRu** (Русский заголовок, до 80 символов)
+   - То же содержание на русском
+   - Сохраняйте бренд и модель в оригинальном написании
+   Piemērs:
+     RU: "FENCHILIN Голливудское LED-зеркало для макияжа с Bluetooth, 10× увеличение, 80×58 см"
 
-3. **descriptionEn** — English version of the same content, 150-300 characters. Same style guidance.
+4. **descriptionLv** — 150-300 rakstzīmes, plūstoši latviešu. NAV mašīntulkojums!
+   Piemērs:
+     "Liels Holivudas stila grima spogulis ar 18 regulējamām LED lampām un 10× palielinājuma zonu detaļu apstrādei. Iebūvētais Bluetooth skaļrunis ļauj klausīties mūziku, kamēr grimējies. Lielisks risinājums grima galda papildināšanai mājās vai studijā."
 
-4. **suggestedCategory** — Shopify-friendly category path with 1-3 levels using " > " as separator. Common roots: "Home & Kitchen", "Toys & Games", "Sports & Outdoors", "Electronics", "Beauty & Personal Care", "Pet Supplies", "Baby", "Tools & Home Improvement", "Clothing & Accessories". Examples: "Home & Kitchen > Lighting > Vanity Mirrors", "Toys & Games > Outdoor Toys > Activity Mats".
+5. **descriptionEn** — 150-300 chars, English version of the same content.
+   Piemērs:
+     "Large Hollywood-style vanity mirror with 18 dimmable LED bulbs and a 10× magnifier zone for detail work. The built-in Bluetooth speaker lets you stream music while getting ready. A great addition to any home or studio makeup station."
 
-5. **enrichedImages** — Up to 5 direct image URLs (ending in .jpg/.jpeg/.png/.webp or pointing at a CDN that serves images). Empty array is acceptable if you find nothing reliable. Discovery strategy:
-   a. If ASIN is present, try Amazon first:
-      - web_search query: \`ASIN <ASIN code>\`
-      - web_fetch \`https://www.amazon.co.uk/dp/<ASIN>\` and \`https://www.amazon.com/dp/<ASIN>\`
-   b. If EAN/barcode is present, web_search for the EAN.
-   c. Try \`<brand> <distinctive model words> official\` on web_search.
-   d. From any matched product page, pick the largest image (usually 500×500+). Skip:
-      - Thumbnails (tiny filename suffixes like \`_SS40_\`)
-      - Placeholder/no-image graphics
-      - Lifestyle/banner shots that don't show the product
-   Always prefer the manufacturer or Amazon over random marketplaces.
+6. **descriptionRu** — 150-300 символов, русская версия того же содержания. Натуральный язык.
+   Piemērs:
+     "Большое голливудское зеркало для макияжа с 18 регулируемыми LED-лампами и зоной 10× увеличения для детальной работы. Встроенный Bluetooth-динамик позволяет слушать музыку во время сборов. Отличное дополнение к туалетному столику дома или в студии."
 
-6. **sourceUrls** — list the pages you actually pulled info or images from. Helps the warehouse worker audit.
+7. **suggestedCategory** — Shopify category, 1-3 levels with " > " separator, ANGLISKI. Bieži saknes: "Home & Kitchen", "Toys & Games", "Sports & Outdoors", "Electronics", "Beauty & Personal Care", "Pet Supplies", "Baby", "Tools & Home Improvement", "Clothing & Accessories".
 
-7. **confidenceScore** — be honest:
-   - 0.9–1.0: Exact match on Amazon/manufacturer; pictures and specs verified.
-   - 0.6–0.8: Strong similar listing; descriptions plausible.
-   - 0.3–0.5: Limited info; descriptions are inferred from title + category.
-   - <0.3: Could not verify; descriptions are best-guess.
+8. **enrichedImages** — līdz 5 tieši URL uz produkta bildēm (.jpg/.jpeg/.png/.webp vai CDN, kas atdod bildes). Tukšs masīvs ir OK, ja neko nevar atrast.
+   Meklēšanas stratēģija:
+   a. Ja ASIN ir, sāc no Amazon:
+      - web_search: \`ASIN <ASIN code>\`
+      - web_fetch: \`https://www.amazon.co.uk/dp/<ASIN>\` un \`https://www.amazon.com/dp/<ASIN>\`
+   b. Ja EAN/barcode ir, web_search uz EAN.
+   c. Mēģini \`<brand> <distinktīvi modela vārdi> official\` ar web_search.
+   d. No atrastās produkta lapas paņem lielāko bildi (parasti 500×500+). Izlaid:
+      - Tumbnails (mazi filename suffixes kā \`_SS40_\`)
+      - Placeholder/no-image grafiku
+      - Lifestyle/banner shots, kas nerāda pašu produktu
+   Prioritāte: ražotājs vai Amazon, nevis nejaušs tirgus.
 
-8. **notes** — optional. Use it to flag unusual things ("Likely counterfeit — generic brand using premium name", "Product appears discontinued", "Multiple distinct products share this ASIN — selected the most common").
+9. **sourceUrls** — uzskaita lapas, no kurām paņēmi info vai bildes. Palīdz noliktavas darbiniekam pārbaudīt.
 
-# Rules you must follow
+10. **confidenceScore** — esi godīgs:
+    - 0.9–1.0: Precīzs atbilstība Amazon/ražotājs; bildes un specs apstiprināti.
+    - 0.6–0.8: Stipra līdzība; apraksti ticami.
+    - 0.3–0.5: Ierobežota info; apraksti izsecināti no virsraksta + kategorijas.
+    - <0.3: Nevarēja apstiprināt; apraksti ir labākais minējums.
 
-- Never fabricate specifications (capacity, voltage, dimensions). If unknown, omit them — do NOT invent.
-- Never claim "Brand New" condition. The manifest condition field tells you what to say. Common values: "Customer Return", "Brand New", "Open Box", "Damaged Package". For customer-return items, the Latvian description may briefly mention "Klientu atgriezta prece" — but only if the condition is actually "Customer Return".
-- Latvian descriptions must be in fluent Latvian, not machine-translated English. Use natural word order, proper case endings.
-- Stay within ~10 web tool calls per product. If you've already exhausted reasonable searches, return what you have with appropriate confidence.
-- Output must be a single JSON object matching the schema. No prose outside JSON. No \`\`\`json fences.
-- This project is operationally separate from Workmanis.lv (an unrelated craftsmen platform). Do not reference Workmanis.lv in any output text.
+11. **notes** — opcionāli. Lieto, lai brīdinātu noliktavnieku ("Iespējams viltojums — ģenerisks brends izmanto premium nosaukumu", "Produkts šķiet izņemts no ražošanas", "Vairāki dažādi produkti dala šo ASIN — izvēlēts izplatītākais"). LATVIEŠU valodā.
 
-# Anti-patterns to avoid
+# Noteikumi, kas JĀIEVĒRO
 
-- "This is a great product that you will love!" — empty marketing fluff.
-- "✨🎉 PERFECT GIFT 🎁✨" — emoji-stuffing.
-- Bullet lists when prose flows better.
-- English idioms mistranslated into Latvian.
-- Repeating the title verbatim inside the description.
-- Image URLs from Jobalots S3 (those are the original manifest images — the caller already has them).
+- Nekad neizdomā tehniskās specifikācijas (ietilpība, voltāža, izmēri). Ja nezini, izlaid — NEIZDOMA.
+- Nekad neapgalvo "Jauns" stāvokli. Manifesta condition lauks pasaka, ko teikt. Bieži vērtības: "Customer Return", "Brand New", "Open Box", "Damaged Package". "Customer Return" gadījumā latviešu aprakstā var īsi pieminēt "klientu atgriezta prece" — bet TIKAI, ja condition tiešām ir "Customer Return".
+- Latviešu un krievu aprakstiem JĀBŪT dabīgiem, nevis mašīntulkotiem no angļu valodas.
+- Paliec ap 10 web tool izsaukumiem uz produktu. Ja jau esi izmantojis saprātīgu meklēšanu, atgriez, kas tev ir, ar piemērotu confidence.
+- Output ir VIENS JSON objekts, kas atbilst shēmai. NAV proza ārpus JSON. NAV \`\`\`json fences.
+- Projekts ir operatīvi atdalīts no Workmanis.lv (nesaistīta amatnieku platforma). Nepiemini Workmanis.lv nekur output tekstā.
 
-You will receive one product per request. Reply with one JSON object per request.`;
+# Anti-pattern, ko izvairīties
+
+- "Šis produkts ir lielisks un jūs to mīlēsiet!" — tukša marketinga frāze.
+- "✨🎉 PERFEKTĀ DĀVANA 🎁✨" — emoju-stuffing.
+- Bullet saraksti, kad proza plūst labāk.
+- Angļu idiomas slikti tulkotas latviski.
+- Virsraksta atkārtošana aprakstā burtiski.
+- Bildes URL no Jobalots S3 (tās ir oriģinālās manifesta bildes — pievienotājs jau tās ir).
+
+Saņemsi vienu produktu uz vienu pieprasījumu. Atbildi ar vienu JSON objektu uz katru pieprasījumu.`;
 
 export interface EnrichmentInput {
   productSku: string;
@@ -166,8 +220,11 @@ export interface EnrichmentInput {
 
 export interface EnrichmentResult {
   enrichedTitle: string;
+  enrichedTitleEn: string;
+  enrichedTitleRu: string;
   descriptionLv: string;
   descriptionEn: string;
+  descriptionRu: string;
   suggestedCategory: string;
   enrichedImages: string[];
   sourceUrls: string[];
@@ -299,8 +356,15 @@ export async function enrichProduct(
   }
 
   // Belt-and-suspenders validation: schema-mode should guarantee this, but
-  // we double-check the few fields the rest of the pipeline depends on.
-  for (const key of ["enrichedTitle", "descriptionLv", "descriptionEn"] as const) {
+  // we double-check the fields the rest of the pipeline depends on.
+  for (const key of [
+    "enrichedTitle",
+    "enrichedTitleEn",
+    "enrichedTitleRu",
+    "descriptionLv",
+    "descriptionEn",
+    "descriptionRu",
+  ] as const) {
     if (!parsed[key] || typeof parsed[key] !== "string") {
       throw new Error(`Claude atbildē trūkst obligātā lauka: ${key}`);
     }

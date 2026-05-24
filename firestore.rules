@@ -72,6 +72,12 @@ service cloud.firestore {
                   'soldAt',
                   'shippedAt',
                   'shippedByUid',
+                  'enrichedTitle',
+                  'enrichedTitleEn',
+                  'enrichedTitleRu',
+                  'descriptionLv',
+                  'descriptionEn',
+                  'descriptionRu',
                   'updatedAt'
                 ]));
     }

@@ -607,6 +607,159 @@ export function DisposedRobot({ className, title = "Utilizēts" }: MascotProps) 
 }
 
 // =================================================================
+// WritingRobot — AI bagātinājuma indikators
+// Robots tur planšeti un raksta ar pildspalvu. Tinta animējas (scribble line
+// kas pieaug), galva pakaļas pakustinās, "thinking" punkti virs galvas.
+// =================================================================
+
+export function WritingRobot({
+  className,
+  title = "AI bagātina datus…",
+}: MascotProps) {
+  return (
+    <svg
+      viewBox="0 0 80 80"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      role="img"
+      aria-label={title}
+    >
+      <title>{title}</title>
+      <defs>
+        <linearGradient id="wr-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#6d28d9" />
+        </linearGradient>
+        <linearGradient id="wr-head" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#c4b5fd" />
+          <stop offset="100%" stopColor="#7c3aed" />
+        </linearGradient>
+      </defs>
+      <style>{`
+        .wr-bob { animation: wr-bob 3.1s ease-in-out infinite; transform-origin: 40px 40px; }
+        @keyframes wr-bob {
+          0%,100% { transform: translateY(0); }
+          50%     { transform: translateY(-1.5px); }
+        }
+        .wr-head-tilt { transform-origin: 40px 38px; transform-box: fill-box; animation: wr-head-tilt 4.7s ease-in-out infinite; }
+        @keyframes wr-head-tilt {
+          0%,100% { transform: rotate(0deg); }
+          25%     { transform: rotate(-3deg); }
+          75%     { transform: rotate(3deg); }
+        }
+        .wr-pen { transform-origin: 60px 52px; transform-box: fill-box; animation: wr-pen 0.5s ease-in-out infinite; }
+        @keyframes wr-pen {
+          0%,100% { transform: translate(0, 0) rotate(0deg); }
+          25%     { transform: translate(-1.5px, 0.5px) rotate(-2deg); }
+          75%     { transform: translate(1.5px, -0.5px) rotate(2deg); }
+        }
+        .wr-eye-think { animation: wr-think 2.3s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+        @keyframes wr-think {
+          0%,40%,100% { transform: translateX(0); }
+          20%         { transform: translateX(0.8px); }
+          60%         { transform: translateX(-0.8px); }
+        }
+        .wr-blink { animation: wr-blink 4s infinite; transform-origin: center; transform-box: fill-box; }
+        @keyframes wr-blink {
+          0%,93%,97%,100% { transform: scaleY(1); }
+          95%             { transform: scaleY(0.1); }
+        }
+        .wr-dot-1 { animation: wr-dot 1.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+        .wr-dot-2 { animation: wr-dot 1.4s ease-in-out infinite 0.2s; transform-origin: center; transform-box: fill-box; }
+        .wr-dot-3 { animation: wr-dot 1.4s ease-in-out infinite 0.4s; transform-origin: center; transform-box: fill-box; }
+        @keyframes wr-dot {
+          0%,100% { opacity: 0.2; transform: translateY(0); }
+          50%     { opacity: 1;   transform: translateY(-2px); }
+        }
+        /* Ink line grows + resets — gives a "scribble" feel without bezier math. */
+        .wr-ink-1 { animation: wr-ink 1.6s ease-in-out infinite; transform-origin: 8px 60px; transform-box: fill-box; }
+        .wr-ink-2 { animation: wr-ink 1.6s ease-in-out infinite 0.4s; transform-origin: 8px 64px; transform-box: fill-box; }
+        .wr-ink-3 { animation: wr-ink 1.6s ease-in-out infinite 0.8s; transform-origin: 8px 68px; transform-box: fill-box; }
+        @keyframes wr-ink {
+          0%      { transform: scaleX(0); opacity: 0; }
+          20%     { opacity: 1; }
+          80%     { transform: scaleX(1); opacity: 1; }
+          100%    { transform: scaleX(1); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .wr-bob, .wr-head-tilt, .wr-pen, .wr-eye-think, .wr-blink,
+          .wr-dot-1, .wr-dot-2, .wr-dot-3,
+          .wr-ink-1, .wr-ink-2, .wr-ink-3 { animation: none; }
+        }
+      `}</style>
+
+      {/* "Thinking" dots over the head */}
+      <g>
+        <circle className="wr-dot-1" cx="50" cy="7"  r="1.4" fill="#7c3aed" />
+        <circle className="wr-dot-2" cx="55" cy="6"  r="1.4" fill="#7c3aed" />
+        <circle className="wr-dot-3" cx="60" cy="7"  r="1.4" fill="#7c3aed" />
+      </g>
+
+      <g className="wr-bob">
+        {/* Antenna with pulse */}
+        <line x1="40" y1="14" x2="40" y2="20" stroke="#6d28d9" strokeWidth="1.4" strokeLinecap="round" />
+        <circle cx="40" cy="12" r="2.2" fill="#a78bfa" />
+
+        <g className="wr-head-tilt">
+          {/* Head */}
+          <rect x="27" y="20" width="26" height="19" rx="5" fill="url(#wr-head)" />
+          <rect x="29" y="24" width="22" height="11" rx="2.5" fill="#3b0764" opacity="0.3" />
+          {/* "Thinking" eyes — look back and forth */}
+          <g className="wr-eye-think">
+            <circle className="wr-blink" cx="34" cy="29" r="2.2" fill="#fef9c3" />
+            <circle className="wr-blink" cx="46" cy="29" r="2.2" fill="#fef9c3" />
+            <circle cx="34" cy="29" r="1" fill="#3b0764" />
+            <circle cx="46" cy="29" r="1" fill="#3b0764" />
+          </g>
+          {/* Slight smile */}
+          <path d="M 34 34 Q 40 35.5 46 34" stroke="#fef9c3" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        </g>
+
+        {/* Neck */}
+        <rect x="36" y="38" width="8" height="3" fill="#5b21b6" />
+
+        {/* Body */}
+        <rect x="22" y="40" width="36" height="24" rx="5" fill="url(#wr-body)" />
+        {/* Chest "AI" label */}
+        <text x="40" y="54" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#fef9c3">
+          AI
+        </text>
+
+        {/* Left arm holding clipboard */}
+        <rect x="14" y="44" width="6" height="14" rx="2" fill="#5b21b6" />
+        <g>
+          {/* Clipboard back */}
+          <rect x="3" y="54" width="18" height="18" rx="1" fill="#fef9c3" stroke="#5b21b6" strokeWidth="0.8" />
+          {/* Clip */}
+          <rect x="10" y="52" width="4" height="3" rx="0.5" fill="#5b21b6" />
+          {/* Header line */}
+          <line x1="5" y1="58" x2="19" y2="58" stroke="#7c3aed" strokeWidth="0.6" />
+          {/* Animated ink lines being "written" */}
+          <rect className="wr-ink-1" x="5" y="61" width="13" height="1.2" rx="0.5" fill="#3b0764" />
+          <rect className="wr-ink-2" x="5" y="65" width="11" height="1.2" rx="0.5" fill="#3b0764" />
+          <rect className="wr-ink-3" x="5" y="69" width="9"  height="1.2" rx="0.5" fill="#3b0764" />
+        </g>
+
+        {/* Right arm with pen — pen jiggles ("writing") */}
+        <rect x="58" y="44" width="6" height="12" rx="2" fill="#5b21b6" />
+        <g className="wr-pen">
+          {/* Pen body */}
+          <rect x="55" y="50" width="2.5" height="10" rx="0.7" fill="#1e293b" transform="rotate(35 56 55)" />
+          {/* Pen tip */}
+          <polygon points="59,60 60.5,62 58,62" fill="#1e293b" transform="rotate(35 59 61)" />
+          {/* Highlight */}
+          <line x1="55.5" y1="52" x2="57" y2="58" stroke="#cbd5e1" strokeWidth="0.4" transform="rotate(35 56 55)" />
+        </g>
+
+        {/* Feet */}
+        <rect x="26" y="64" width="9" height="5" rx="1.5" fill="#3b0764" />
+        <rect x="45" y="64" width="9" height="5" rx="1.5" fill="#3b0764" />
+      </g>
+    </svg>
+  );
+}
+
+// =================================================================
 // Robot 3 — Stale 2 weeks (alarmed, urgent, exclamation overhead)
 // =================================================================
 

@@ -18,6 +18,7 @@ import {
 } from "@/components/StatusBadge";
 import { LISTING_STATUS_LABEL } from "@/lib/types";
 import { ProductActionsPanel } from "@/components/ProductActionsPanel";
+import { WritingRobot } from "@/components/RobotMascots";
 import type {
   ApprovalStatus,
   ListingStatus,
@@ -105,6 +106,31 @@ function PalletDetail({ id }: { id: string }) {
       }
     })();
   }, [id]);
+
+  // While auto-enrichment is in flight, poll the pallet doc every 8 s so the
+  // overlay disappears as soon as the server marks the batch complete. We
+  // also refetch products at the end so the worker immediately sees the
+  // enriched data (titles, translations, images).
+  const enriching =
+    !!pallet?.autoEnrichmentStartedAt && !pallet.autoEnrichmentCompletedAt;
+  useEffect(() => {
+    if (!enriching) return;
+    const t = setInterval(async () => {
+      try {
+        const fresh = await getPallet(id);
+        if (fresh) {
+          setPallet(fresh);
+          if (fresh.autoEnrichmentCompletedAt) {
+            await refreshProducts();
+          }
+        }
+      } catch {
+        // transient errors — keep polling
+      }
+    }, 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enriching, id]);
 
   const canManage = hasPermission(appUser?.role, "managePallets");
 
@@ -290,8 +316,56 @@ function PalletDetail({ id }: { id: string }) {
     );
   }
 
+  // Full-page block while AI auto-enrichment is still running. MASTER can
+  // bypass — admins sometimes need to peek inside while the batch is going.
+  if (enriching && !isMaster) {
+    const started = pallet.autoEnrichmentStartedAt?.toDate?.();
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-lg border-2 border-violet-200 bg-violet-50 p-8 text-center">
+        <div className="h-48 w-48">
+          <WritingRobot className="h-full w-full" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold text-violet-900">
+            AI bagātina manifesta produktus…
+          </h1>
+          <p className="mt-2 text-sm text-violet-800">
+            Pievieno bildes, virsrakstus un aprakstus latviski, angliski un
+            krieviski. Šis var ilgt 5–20 minūtes (atkarīgs no produktu skaita).
+          </p>
+          <p className="mt-1 text-xs text-violet-700">
+            Lapa atjaunosies automātiski, kad būs gatavs. Vari aizvērt cilni —
+            process turpinās serverī.
+          </p>
+          {started && (
+            <p className="mt-3 text-[11px] text-slate-500">
+              Sākts {started.toLocaleString("lv-LV")}
+            </p>
+          )}
+        </div>
+        <Link
+          href="/skirosana"
+          className="text-xs text-slate-500 underline-offset-2 hover:underline"
+        >
+          ← Atpakaļ uz Šķirošanas sarakstu
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {pallet.autoEnrichmentCompletedAt && pallet.autoEnrichmentSucceeded != null && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+          ✓ AI bagātinājums pabeigts —{" "}
+          <strong>{pallet.autoEnrichmentSucceeded}</strong> sekmīgi
+          {pallet.autoEnrichmentFailed
+            ? `, ${pallet.autoEnrichmentFailed} kļūdas`
+            : ""}
+          . Pārskati produktus un, ja vajag, manuāli izlabo virsrakstus vai
+          aprakstus.
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

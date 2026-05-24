@@ -93,8 +93,11 @@ export async function POST(req: Request) {
       const updateFields: Record<string, unknown> = {
         aiStatus: enriched.confidenceScore >= 0.6 ? "enriched" : "needs_review",
         enrichedTitle: enriched.enrichedTitle,
+        enrichedTitleEn: enriched.enrichedTitleEn,
+        enrichedTitleRu: enriched.enrichedTitleRu,
         descriptionLv: enriched.descriptionLv,
         descriptionEn: enriched.descriptionEn,
+        descriptionRu: enriched.descriptionRu,
         enrichedImages: enriched.enrichedImages,
         images: mergedImages,
         sourceUrls: enriched.sourceUrls,

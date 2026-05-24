@@ -87,6 +87,17 @@ export interface Pallet {
   /** Uid of the admin/master who made the assignment. */
   assignedBy: string | null;
 
+  /** Auto-enrichment progress tracking. Set the moment the pallet is claimed
+   *  (or auto-claimed in Loģistika), cleared when the batch finishes. The
+   *  Šķirošanas detaļu lapa shows a blocking "writing robot" overlay while
+   *  this is in progress; the saraksta lapa shows the robot inline on the
+   *  pallet card. */
+  autoEnrichmentStartedAt: Timestamp | null;
+  autoEnrichmentCompletedAt: Timestamp | null;
+  autoEnrichmentSucceeded: number | null;
+  autoEnrichmentFailed: number | null;
+  autoEnrichmentError: string | null;
+
   status: PalletStatus;
   createdBy: string;
   createdAt: Timestamp | null;
@@ -220,10 +231,17 @@ export interface Product {
   confidenceScore: number | null;
   recommendedAction: RecommendedAction | null;
 
-  /** AI-cleaned title and translated descriptions (filled by Posms 5). */
+  /** AI-cleaned title (Latvian — primary store language). */
   enrichedTitle: string | null;
+  /** AI-cleaned title in English (Shopify multi-language). */
+  enrichedTitleEn: string | null;
+  /** AI-cleaned title in Russian (Shopify multi-language). */
+  enrichedTitleRu: string | null;
+
   descriptionLv: string | null;
   descriptionEn: string | null;
+  /** AI-translated Russian description (Shopify multi-language). */
+  descriptionRu: string | null;
 
   /** Optional record of what the product was actually sold for (manual entry
    *  until Shopify webhook integration). Used for "ietirgots XX EUR". */

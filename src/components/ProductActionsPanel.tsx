@@ -54,6 +54,52 @@ export function ProductActionsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ---- AI content editor state (LV / EN / RU) ----
+  const [activeLang, setActiveLang] = useState<"lv" | "en" | "ru">("lv");
+  const [titleLv, setTitleLv] = useState(product.enrichedTitle ?? "");
+  const [titleEn, setTitleEn] = useState(product.enrichedTitleEn ?? "");
+  const [titleRu, setTitleRu] = useState(product.enrichedTitleRu ?? "");
+  const [descLv, setDescLv] = useState(product.descriptionLv ?? "");
+  const [descEn, setDescEn] = useState(product.descriptionEn ?? "");
+  const [descRu, setDescRu] = useState(product.descriptionRu ?? "");
+  const [contentDirty, setContentDirty] = useState(false);
+  const [contentToast, setContentToast] = useState<string | null>(null);
+
+  const saveContent = async () => {
+    if (!appUser) return;
+    setBusy(true);
+    setContentToast(null);
+    try {
+      await updateProduct(product.id, {
+        enrichedTitle: titleLv.trim() || null,
+        enrichedTitleEn: titleEn.trim() || null,
+        enrichedTitleRu: titleRu.trim() || null,
+        descriptionLv: descLv.trim() || null,
+        descriptionEn: descEn.trim() || null,
+        descriptionRu: descRu.trim() || null,
+      });
+      await logAudit({
+        userId: appUser.uid,
+        userEmail: appUser.email,
+        action: "product_customer_note_set", // closest existing action; piggybacks the manual-edit audit
+        entityType: "product",
+        entityId: product.id,
+        after: {
+          editedFields: ["titles", "descriptions"],
+          via: "manual-multilang-edit",
+        },
+      });
+      setContentDirty(false);
+      setContentToast("✓ Saglabāts");
+      onChanged?.();
+      setTimeout(() => setContentToast(null), 3000);
+    } catch (err) {
+      setContentToast(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const [aiBusy, setAiBusy] = useState(false);
   const [aiStatusLocal, setAiStatusLocal] = useState<AiStatus | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -331,32 +377,103 @@ export function ProductActionsPanel({
           </div>
         )}
 
-        {(product.enrichedTitle || product.descriptionLv) && (
-          <div className="mt-3 space-y-2 rounded-md bg-slate-50 p-3">
-            {product.enrichedTitle && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">
-                  AI title
-                </div>
-                <div className="text-sm text-slate-900">{product.enrichedTitle}</div>
+        {(product.enrichedTitle ||
+          product.enrichedTitleEn ||
+          product.enrichedTitleRu ||
+          product.descriptionLv ||
+          product.descriptionEn ||
+          product.descriptionRu) && (
+          <div className="mt-3 space-y-3 rounded-md bg-slate-50 p-3">
+            {/* Language tabs */}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                {(["lv", "en", "ru"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setActiveLang(lang)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ${
+                      activeLang === lang
+                        ? "bg-slate-900 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {lang === "lv" ? "Latviešu" : lang === "en" ? "English" : "Русский"}
+                  </button>
+                ))}
               </div>
-            )}
-            {product.descriptionLv && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">
-                  Apraksts LV
-                </div>
-                <div className="text-xs text-slate-700">{product.descriptionLv}</div>
+              <div className="flex items-center gap-2">
+                {contentToast && (
+                  <span className="text-[11px] text-slate-700">{contentToast}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={saveContent}
+                  disabled={busy || !contentDirty}
+                  className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  Saglabāt tulkojumus
+                </button>
               </div>
+            </div>
+
+            {/* Editable content per active language */}
+            {activeLang === "lv" && (
+              <LangFields
+                titleLabel="Virsraksts (latviski)"
+                descLabel="Apraksts (latviski)"
+                titleValue={titleLv}
+                descValue={descLv}
+                onTitleChange={(v) => {
+                  setTitleLv(v);
+                  setContentDirty(true);
+                }}
+                onDescChange={(v) => {
+                  setDescLv(v);
+                  setContentDirty(true);
+                }}
+                titlePlaceholder="piem. FENCHILIN Hollywood LED Grima Spogulis ar Bluetooth"
+                descPlaceholder="150–300 rakstzīmes, dabīgi latviski ar diakritikām…"
+              />
             )}
-            {product.descriptionEn && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">
-                  Description EN
-                </div>
-                <div className="text-xs text-slate-700">{product.descriptionEn}</div>
-              </div>
+            {activeLang === "en" && (
+              <LangFields
+                titleLabel="Title (English)"
+                descLabel="Description (English)"
+                titleValue={titleEn}
+                descValue={descEn}
+                onTitleChange={(v) => {
+                  setTitleEn(v);
+                  setContentDirty(true);
+                }}
+                onDescChange={(v) => {
+                  setDescEn(v);
+                  setContentDirty(true);
+                }}
+                titlePlaceholder="e.g. FENCHILIN Hollywood LED Vanity Mirror with Bluetooth"
+                descPlaceholder="150–300 characters, natural English…"
+              />
             )}
+            {activeLang === "ru" && (
+              <LangFields
+                titleLabel="Заголовок (русский)"
+                descLabel="Описание (русское)"
+                titleValue={titleRu}
+                descValue={descRu}
+                onTitleChange={(v) => {
+                  setTitleRu(v);
+                  setContentDirty(true);
+                }}
+                onDescChange={(v) => {
+                  setDescRu(v);
+                  setContentDirty(true);
+                }}
+                titlePlaceholder="напр. FENCHILIN Голливудское LED-зеркало для макияжа с Bluetooth"
+                descPlaceholder="150–300 символов, натуральный русский…"
+              />
+            )}
+
+            {/* Images + sources stay read-only for now */}
             {product.enrichedImages && product.enrichedImages.length > 0 && (
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">
@@ -555,6 +672,62 @@ export function ProductActionsPanel({
           {error}
         </div>
       )}
+    </div>
+  );
+}
+
+function LangFields({
+  titleLabel,
+  descLabel,
+  titleValue,
+  descValue,
+  onTitleChange,
+  onDescChange,
+  titlePlaceholder,
+  descPlaceholder,
+}: {
+  titleLabel: string;
+  descLabel: string;
+  titleValue: string;
+  descValue: string;
+  onTitleChange: (v: string) => void;
+  onDescChange: (v: string) => void;
+  titlePlaceholder: string;
+  descPlaceholder: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-slate-500">
+          {titleLabel}
+        </label>
+        <input
+          type="text"
+          value={titleValue}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder={titlePlaceholder}
+          maxLength={120}
+          className="mt-0.5 w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+        />
+        <div className="mt-0.5 text-right text-[10px] text-slate-400">
+          {titleValue.length} / 80 ieteicams
+        </div>
+      </div>
+      <div>
+        <label className="block text-[10px] uppercase tracking-wider text-slate-500">
+          {descLabel}
+        </label>
+        <textarea
+          value={descValue}
+          onChange={(e) => onDescChange(e.target.value)}
+          placeholder={descPlaceholder}
+          rows={4}
+          className="mt-0.5 w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+        />
+        <div className="mt-0.5 text-right text-[10px] text-slate-400">
+          {descValue.length} / 150–300 ieteicams
+        </div>
+      </div>
     </div>
   );
 }
