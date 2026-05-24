@@ -27,10 +27,18 @@ const QA: Array<{ q: string; a: string }> = [
   },
 ];
 
+// How long the "..." typing indicator stays before the answer pops in.
+// Short enough that the user doesn't get bored, long enough to register as
+// "the brand is composing a reply".
+const TYPING_MS = 500;
+
 export function Hero() {
-  // How many answers have been revealed. The widget shows the next pending
-  // question + reveal button until all three are answered.
+  // How many answers have been fully revealed.
   const [answered, setAnswered] = useState(0);
+  // True while we're showing the typing indicator for the NEXT answer
+  // (i.e. answer at index `answered` is being "typed"). Goes false when
+  // we flip it to revealed.
+  const [typing, setTyping] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playPop = () => {
@@ -73,11 +81,16 @@ export function Hero() {
   };
 
   const reveal = () => {
-    setAnswered((n) => Math.min(n + 1, QA.length));
-    playPop();
+    if (typing) return; // ignore double clicks while composing
+    setTyping(true);
+    window.setTimeout(() => {
+      setAnswered((n) => Math.min(n + 1, QA.length));
+      setTyping(false);
+      playPop();
+    }, TYPING_MS);
   };
 
-  const allDone = answered >= QA.length;
+  const allDone = answered >= QA.length && !typing;
 
   return (
     <section className="relative isolate overflow-hidden bg-neutral-900 text-white">
@@ -102,6 +115,9 @@ export function Hero() {
           {QA.map((pair, i) => {
             const showQuestion = i <= answered;
             const showAnswer = i < answered;
+            // Typing bubble belongs to the answer that's about to appear —
+            // i.e. the one at index `answered`, while `typing` is true.
+            const showTyping = typing && i === answered;
             if (!showQuestion) return null;
             return (
               <div key={i} className="space-y-3 md:space-y-4">
@@ -114,6 +130,24 @@ export function Hero() {
                     {pair.q}
                   </div>
                 </div>
+
+                {/* Typing indicator (composing the answer) */}
+                {showTyping && (
+                  <div
+                    className="bubble-in flex items-end justify-end gap-2.5 md:gap-3"
+                    aria-live="polite"
+                    aria-label="14D raksta atbildi"
+                  >
+                    <div className="flex items-center gap-1.5 rounded-2xl rounded-br-sm bg-blue-500 px-5 py-3.5 text-white shadow-xl md:px-6 md:py-4">
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                    </div>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-600 text-xs font-bold uppercase text-white md:h-12 md:w-12 md:text-sm">
+                      14D
+                    </div>
+                  </div>
+                )}
 
                 {/* Brand answer — right, with pop animation */}
                 {showAnswer && (
@@ -130,8 +164,9 @@ export function Hero() {
             );
           })}
 
-          {/* Reveal button — visible while there are pending answers */}
-          {!allDone && (
+          {/* Reveal button — visible while there are pending answers and we
+           *  are not currently typing the previous one. */}
+          {!allDone && !typing && (
             <div className="bubble-in flex justify-start pl-[3.25rem] md:pl-[3.75rem]">
               <button
                 type="button"
