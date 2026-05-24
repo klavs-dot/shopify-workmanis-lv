@@ -241,6 +241,11 @@ function ManifestUploader() {
         location: lookup?.location ?? null,
         weightKg: lookup?.weightKg ?? null,
         palletCondition: lookup?.condition ?? null,
+        coverImage:
+          lookup?.coverImage ||
+          // Fallback: first product image from the manifest itself
+          parsedPreview.rows.find((r) => r.manifestImages.length > 0)?.manifestImages[0] ||
+          null,
         createdBy: appUser.uid,
       });
       const { inserted } = await bulkInsertProductsForPallet(
@@ -704,40 +709,57 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
       : null;
   return (
     <article
-      className={`flex flex-col rounded-lg border p-4 shadow-sm ${
+      className={`flex flex-col overflow-hidden rounded-lg border shadow-sm ${
         inTransit
           ? "border-amber-200 bg-amber-50/40"
           : "border-slate-200 bg-white"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <Link
-            href={inTransit ? "/logistika" : `/skirosana/${pallet.id}`}
-            className="block truncate text-sm font-semibold text-slate-900 hover:underline"
-          >
-            {pallet.name}
-          </Link>
-          <div className="text-xs text-slate-500">
-            <span className="font-mono">{pallet.manifestSku}</span>
-            {pallet.source && ` · ${pallet.source}`}
+      {/* Cover image (Jobalots auction picture, falls back to first product
+       *  image, falls back to a generic placeholder) */}
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+        {pallet.coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={pallet.coverImage}
+            alt={`${pallet.name} cover`}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center font-mono text-xs text-slate-400">
+            {pallet.manifestSku}
           </div>
-          {inTransit && (
-            <span className="mt-1 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
-              🚚 Ceļā
-            </span>
-          )}
-        </div>
+        )}
+        {inTransit && (
+          <span className="absolute left-2 top-2 inline-flex items-center rounded-full bg-amber-200/95 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+            🚚 Ceļā
+          </span>
+        )}
         {pallet.jobalotsUrl && (
           <a
             href={pallet.jobalotsUrl}
             target="_blank"
             rel="noreferrer"
-            className="shrink-0 rounded-md border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
+            className="absolute right-2 top-2 rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-sm hover:bg-white"
           >
             Jobalots ↗
           </a>
         )}
+      </div>
+
+      <div className="flex flex-col p-4">
+      <div className="min-w-0">
+        <Link
+          href={inTransit ? "/logistika" : `/skirosana/${pallet.id}`}
+          className="block truncate text-sm font-semibold text-slate-900 hover:underline"
+        >
+          {pallet.name}
+        </Link>
+        <div className="text-xs text-slate-500">
+          <span className="font-mono">{pallet.manifestSku}</span>
+          {pallet.source && ` · ${pallet.source}`}
+        </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-y-1 text-xs">
@@ -819,6 +841,7 @@ function ManifestCard({ data }: { data: ManifestCardData }) {
         >
           Atvērt →
         </Link>
+      </div>
       </div>
     </article>
   );

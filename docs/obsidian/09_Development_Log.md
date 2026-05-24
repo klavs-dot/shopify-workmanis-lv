@@ -2,6 +2,20 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Cover images uz Šķirošanas / Loģistikas / Manifestu kartītēm
+
+**Veikts:**
+
+- `Pallet` paplašināts ar `coverImage: string | null` lauku.
+- `createPallet()` izvēlas avotu šādā kārtībā: (1) Jobalots auction cover (no `lookup.coverImage`), (2) pirmā produkta `manifestImages[0]` no Excel, (3) `null` (parāda gradient placeholder).
+- `updatePallet()` un Sync no Jobalots arī atjauno `coverImage`.
+- `/skirosana` kartītes pārtaisītas — cover image augšā (16:10 aspect ratio), statusa badge + Jobalots link uzklāts kā chip uz attēla. Grid mainīts uz `xl:grid-cols-3` lai dod vairāk vietas attēlam.
+- `/logistika` kartēs — 80×80 sīka thumb attēls pa kreisi no info.
+- `/manifesti` landing kartēs — tāda pati 16:10 cover augšā kā Šķirošanā.
+- Fallback bez attēla: gradient `from-slate-100 to-slate-200` + manifest SKU font-mono tekstā.
+- `scripts/backfill-cover-images.ts` — vienreizīgs skripts existing paletei: iterē pa visām paletēm ar `jobalotsUrl` bet bez `coverImage`, re-fetchu Jobalots un saglabā. Palaists ar `WRITE=1 npx tsx scripts/backfill-cover-images.ts`.
+- Palaists tikko — 1 esošā palete (YELLOW30026) saņēma savu cover.
+
 ## 2026-05-24 — Sorting claims + pulsējoša "vēl nav pabeigts" indikācija
 
 **Veikts:** skat [[13_Sorting_Claims]] pilnu aprakstu.

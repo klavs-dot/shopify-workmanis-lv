@@ -41,6 +41,7 @@ export interface CreatePalletInput {
   location: string | null;
   weightKg: number | null;
   palletCondition: string | null;
+  coverImage: string | null;
   createdBy: string;
 }
 
@@ -105,6 +106,7 @@ export interface UpdatePalletInput {
   location?: string | null;
   weightKg?: number | null;
   palletCondition?: string | null;
+  coverImage?: string | null;
 }
 
 export async function updatePallet(id: string, patch: UpdatePalletInput): Promise<void> {

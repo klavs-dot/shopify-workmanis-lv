@@ -12,6 +12,7 @@ import {
   releasePalletSortingClaim,
 } from "@/lib/firestore/pallets";
 import { listProducts } from "@/lib/firestore/products";
+import { Boxes } from "lucide-react";
 import { logAudit } from "@/lib/firestore/audit";
 import { PalletBadge } from "@/components/StatusBadge";
 import type { Pallet, Product } from "@/lib/types";
@@ -153,7 +154,7 @@ function SkirosanaList() {
             : "Visi saņemtie manifesti jau ir sašķiroti. 🎉"}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((r) => (
             <PalletCard
               key={r.pallet.id}
@@ -196,23 +197,54 @@ function PalletCard({
 
   // Card classes
   const baseClasses =
-    "block rounded-lg border-2 bg-white p-4 shadow-sm transition";
+    "flex flex-col overflow-hidden rounded-lg border-2 bg-white shadow-sm transition";
   const stateClasses = pulse
     ? "pulse-red-ring"
     : "border-slate-200 hover:border-slate-300 hover:shadow";
 
-  const TitleBlock = (
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-slate-900">
-          {pallet.name}
+  const CoverImage = (
+    <div className="relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+      {pallet.coverImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={pallet.coverImage}
+          alt={`${pallet.name} cover`}
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center text-slate-400">
+          <Boxes className="h-12 w-12" />
+          <div className="mt-1 font-mono text-[10px]">{pallet.manifestSku}</div>
         </div>
-        <div className="text-xs text-slate-500">
-          <span className="font-mono">{pallet.manifestSku}</span>
-          {pallet.source && ` · ${pallet.source}`}
-        </div>
+      )}
+      {/* Status badge floating over the image */}
+      <div className="absolute right-2 top-2">
+        <PalletBadge status={pallet.status} />
       </div>
-      <PalletBadge status={pallet.status} />
+      {pallet.jobalotsUrl && (
+        <a
+          href={pallet.jobalotsUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute left-2 top-2 rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-sm hover:bg-white"
+        >
+          Jobalots ↗
+        </a>
+      )}
+    </div>
+  );
+
+  const TitleBlock = (
+    <div className="min-w-0">
+      <div className="truncate text-sm font-semibold text-slate-900">
+        {pallet.name}
+      </div>
+      <div className="text-xs text-slate-500">
+        <span className="font-mono">{pallet.manifestSku}</span>
+        {pallet.source && ` · ${pallet.source}`}
+      </div>
     </div>
   );
 
@@ -223,20 +255,32 @@ function PalletCard({
           href={`/skirosana/${pallet.id}`}
           className="block hover:opacity-95"
         >
-          {TitleBlock}
+          {CoverImage}
         </Link>
       ) : (
-        <div className="opacity-90">{TitleBlock}</div>
+        CoverImage
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <Stat label="Produkti" value={String(total)} />
-        <Stat
-          label="Nesašķirotie"
-          value={String(unsorted)}
-          tone={unsorted > 0 ? "amber" : "slate"}
-        />
-      </div>
+      <div className="flex flex-1 flex-col p-4">
+        {canOpen ? (
+          <Link
+            href={`/skirosana/${pallet.id}`}
+            className="block hover:opacity-95"
+          >
+            {TitleBlock}
+          </Link>
+        ) : (
+          <div className="opacity-90">{TitleBlock}</div>
+        )}
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <Stat label="Produkti" value={String(total)} />
+          <Stat
+            label="Nesašķirotie"
+            value={String(unsorted)}
+            tone={unsorted > 0 ? "amber" : "slate"}
+          />
+        </div>
 
       {/* Claim section */}
       <div className="mt-3 border-t border-slate-100 pt-3">
@@ -307,6 +351,7 @@ function PalletCard({
             </div>
           </div>
         )}
+      </div>
       </div>
     </article>
   );

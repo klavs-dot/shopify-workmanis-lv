@@ -176,6 +176,7 @@ function PalletDetail({ id }: { id: string }) {
         location: data.location ?? pallet.location,
         weightKg: data.weightKg ?? pallet.weightKg,
         palletCondition: data.condition ?? pallet.palletCondition,
+        coverImage: data.coverImage ?? pallet.coverImage,
       });
       await logAudit({
         userId: appUser.uid,

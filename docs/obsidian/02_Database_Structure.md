@@ -38,6 +38,7 @@ Posmā 1 + 2 paplašināts Jobalots metadatiem.
 | `location` | string \| null | **Posms 2** — piem. "Poland" |
 | `weightKg` | number \| null | **Posms 2** — paletes svars |
 | `palletCondition` | string \| null | **Posms 2** — piem. "Customer Return" |
+| `coverImage` | string \| null | Jobalots auction cover image URL (fallback: pirmā produkta manifestImage). Rāda Šķirošanas / Loģistikas / Manifestu kartītēs. |
 | `sortingClaimedBy` | string \| null | **Sorting claim** — atbildīgā darbinieka uid |
 | `sortingClaimedByEmail` | string \| null | Snapshot e-pasts (display, ja user-doc nav pieejams) |
 | `sortingClaimedByName` | string \| null | Snapshot displayName |

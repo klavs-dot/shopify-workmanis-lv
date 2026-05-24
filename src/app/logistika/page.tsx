@@ -111,6 +111,15 @@ function LogistikaContent() {
               key={p.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm"
             >
+              {p.coverImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={p.coverImage}
+                  alt={`${p.name} cover`}
+                  loading="lazy"
+                  className="h-20 w-20 shrink-0 rounded-md object-cover ring-1 ring-amber-300"
+                />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold text-slate-900">{p.name}</span>

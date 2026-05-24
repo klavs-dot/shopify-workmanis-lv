@@ -64,6 +64,11 @@ export interface Pallet {
   /** Manifest condition, e.g. "Customer Return", "Brand New". */
   palletCondition: string | null;
 
+  /** Cover image URL from Jobalots auction page (or any other source).
+   *  Used as the visual identifier on Šķirošana / Loģistika / Manifesti
+   *  cards so warehouse staff can recognise the pallet at a glance. */
+  coverImage: string | null;
+
   /** Sorting "claim" — the warehouse worker who took responsibility for this
    *  pallet's product-by-product sort. Other workers see who has it, but
    *  cannot open the detail page (MASTER override always works). */
