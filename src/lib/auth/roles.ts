@@ -11,7 +11,6 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
-    /^\/approval/,
     /^\/settings\/profile/,
   ],
   WAREHOUSE: [
@@ -20,7 +19,6 @@ export const ROLE_ROUTES: Record<UserRole, RegExp[]> = {
     /^\/skirosana/,
     /^\/products/,
     /^\/utilizetas/,
-    /^\/approval/,
     /^\/settings\/profile/,
   ],
   VIEWER: [

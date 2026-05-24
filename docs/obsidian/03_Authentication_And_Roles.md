@@ -29,7 +29,6 @@ Lomas atrunātas:
 | `/pallets/[id]`    | MASTER, ADMIN, WAREHOUSE, VIEWER                |
 | `/products`        | MASTER, ADMIN, WAREHOUSE, VIEWER                |
 | `/products/[id]`   | MASTER, ADMIN, WAREHOUSE, VIEWER                |
-| `/approval`        | MASTER, ADMIN, WAREHOUSE                        |
 | `/masteradmin/**`  | **MASTER tikai**                                |
 
 Aizsardzību veic React-side `RequireRole` ([src/lib/auth/RequireRole.tsx](../../src/lib/auth/RequireRole.tsx)) + Firestore rules. Reālais drošības slānis ir Firestore + Storage rules, nevis UI.

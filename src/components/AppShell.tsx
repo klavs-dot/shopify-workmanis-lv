@@ -8,7 +8,6 @@ import {
   Truck,
   Package,
   Layers,
-  CheckSquare,
   Trash2,
   LogOut,
   ShieldCheck,
@@ -41,13 +40,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/logistika", label: "Loģistika", icon: Truck },
     { href: "/skirosana", label: "Šķirošana", icon: Layers },
     { href: "/products", label: "Produkti veikalā", icon: Package },
-    {
-      href: "/approval",
-      label: "Approval",
-      icon: CheckSquare,
-      visible: () =>
-        hasPermission(appUser?.role, "approveProducts") || appUser?.role === "WAREHOUSE",
-    },
     { href: "/utilizetas", label: "Utilizētās preces", icon: Trash2 },
   ];
 

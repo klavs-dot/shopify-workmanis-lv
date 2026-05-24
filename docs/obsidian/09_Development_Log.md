@@ -2,6 +2,16 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Sadaļas "Approval" noņemšana
+
+**Veikts:**
+
+- `/approval` lapa pilnībā izdzēsta — `src/app/approval/page.tsx` removed.
+- Sidebar links un `CheckSquare` ikona noņemti no AppShell.
+- `ROLE_ROUTES` regex `/^\/approval/` noņemts visām lomām.
+- `approveProducts` PERMISSION un Product `approvalStatus` lauks **paliek** — per-produkta "Apstiprināt ievietošanu" poga ProductActionsPanel-ā joprojām strādā Šķirošanā un raksta `approvalStatus = "approved"`. Tikai centralizētais "approval queue" view ir izņemts.
+- Docs: 01_Tech_Stack un 03_Authentication_And_Roles ceļu tabulas atjauninātas.
+
 ## 2026-05-24 — Produkti veikalā: 3 kategoriju kartītes + bulk darbības
 
 **Veikts:** skat [[14_Products_In_Store]] pilnu aprakstu.
