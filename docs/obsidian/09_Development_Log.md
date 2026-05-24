@@ -2,6 +2,32 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — AI paralelizācija (5×) + Per-day budget cap
+
+Pilns apraksts: [[20_AI_Budget_Parallelism]].
+
+**Paralelizācija:**
+- `enrich-pallet` for loop → `Promise.all` batches ar `AI_CONCURRENCY=5` (env override, clamp [1,20])
+- Praktiski: 25 produkti 20 min → ~5 min; 50 produkti vairs nepārsniedz Vercel 800s function cap
+- `enrich.ts`: `createWithRetry()` — 1× retry uz 429/529/503 ar 2s backoff
+- Mid-run budget re-check: pirms katras batch pārbauda cap
+
+**Budget cap:**
+- `lib/ai/pricing.ts` — Opus 4.7 default cenas, `estimateCostUsd(usage)`, `todayKeyRiga()`
+- `types.ts +2`: `AiCostStats` (daily rollup) un `AiBudgetConfig` (singleton)
+- `lib/firestore/aiBudget.ts` — klients
+- `lib/ai/budgetServer.ts` — admin SDK ar `FieldValue.increment()` atomic spend tracking
+- `enrich-product` un `enrich-pallet`: budget guard pirms, recordSpend pēc
+
+**UI `/iestatijumi/ai-budget`:**
+- Progress bar zaļš/dzeltens/sarkans pēc spent/cap
+- Token-level statistika (input/output/cache)
+- MASTER var mainīt dienas limitu un advanced cenu override
+
+**Firestore rules:**
+- `aiCostStats/{date}` — MASTER+ADMIN read, server-only write
+- `system/{docId}` — MASTER+ADMIN read, MASTER write
+
 ## 2026-05-24 — AI bagātinājums: Opus 4.7 + LV/EN/RU + auto-trigger pie claim
 
 Pilns apraksts: [[19_Auto_Enrichment]]. Updated arī [[06_AI_Enrichment]].

@@ -27,3 +27,4 @@ Atver šo `docs/obsidian/` mapi kā vault Obsidian aplikācijā. Vault dzīvo ie
 18. [[17_Warehouse_Workers]]
 19. [[18_Shipment_Tracking]]
 20. [[19_Auto_Enrichment]]
+21. [[20_AI_Budget_Parallelism]]

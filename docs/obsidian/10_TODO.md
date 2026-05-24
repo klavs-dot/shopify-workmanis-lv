@@ -40,6 +40,8 @@
 - [x] Admin/Master dashboard ar 4 animētiem robotiem (Investment/Sold/InStore/Disposed) + datuma filtrs + darbinieku kartītes
 - [x] Shipment tracking (`shippedAt` + `shippedByUid`) ar mirgojošo brīdinājumu, ja sūtījums nav izsūtīts ilgāk par 3 dienām ([[18_Shipment_Tracking]])
 - [x] AI uz Claude Opus 4.7 — 3-valodu izvade (LV/EN/RU) + auto-trigger pie claim + WritingRobot bloķējošs ekrāns + manuālā labošana ([[19_Auto_Enrichment]])
+- [x] AI paralelizācija (5× workers) — 25 produkti no 20 min → 5 min ([[20_AI_Budget_Parallelism]])
+- [x] AI per-day budget cap ar Iestatījumu UI — default $50/dienā ([[20_AI_Budget_Parallelism]])
 
 ## Augsta prioritāte (nākamais Shopify push)
 
