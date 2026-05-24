@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { firebaseDb } from "@/lib/firebase";
-import type { Pallet, PalletStatus } from "@/lib/types";
+import type { AppUser, Pallet, PalletStatus } from "@/lib/types";
 
 export async function listPallets(): Promise<Pallet[]> {
   if (!firebaseDb) return [];
@@ -52,10 +52,42 @@ export async function createPallet(input: CreatePalletInput): Promise<string> {
     // pallet is still on its way from the supplier. The Loģistika page is
     // where warehouse staff flips it to "imported" (= ready for sorting).
     status: "in_transit" satisfies PalletStatus,
+    sortingClaimedBy: null,
+    sortingClaimedByEmail: null,
+    sortingClaimedByName: null,
+    sortingClaimedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Claim a pallet for sorting — only the claimer (or MASTER) can later
+ *  open its detail page. No-op if already claimed by someone else. */
+export async function claimPalletForSorting(
+  palletId: string,
+  user: Pick<AppUser, "uid" | "email" | "displayName">
+): Promise<void> {
+  if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
+  await updateDoc(doc(firebaseDb, "pallets", palletId), {
+    sortingClaimedBy: user.uid,
+    sortingClaimedByEmail: user.email,
+    sortingClaimedByName: user.displayName || user.email,
+    sortingClaimedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Release a sorting claim. Allowed for the claimer themselves or MASTER. */
+export async function releasePalletSortingClaim(palletId: string): Promise<void> {
+  if (!firebaseDb) throw new Error("Firestore nav konfigurēts");
+  await updateDoc(doc(firebaseDb, "pallets", palletId), {
+    sortingClaimedBy: null,
+    sortingClaimedByEmail: null,
+    sortingClaimedByName: null,
+    sortingClaimedAt: null,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /** Mark a pallet as physically received at the warehouse. Called from the

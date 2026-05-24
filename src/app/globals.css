@@ -29,3 +29,29 @@ table.app-table tbody tr:hover {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Pulsing red ring + border for Šķirošana cards that still have unsorted
+ * products. Intentionally subtle so a screen full of them isn't a strobe
+ * light, but eye-catching enough to draw attention to incomplete work. */
+.pulse-red-ring {
+  animation: pulse-red-ring 2s ease-in-out infinite;
+  border-color: rgb(252 165 165);
+}
+@keyframes pulse-red-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    border-color: rgb(254 202 202);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.18);
+    border-color: rgb(248 113 113);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-red-ring {
+    animation: none;
+    border-color: rgb(248 113 113);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+  }
+}

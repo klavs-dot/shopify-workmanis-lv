@@ -2,6 +2,23 @@
 
 > Hronoloģisks ieraksts par lielajām izmaiņām. Updateo pēc katra loģiska posma.
 
+## 2026-05-24 — Sorting claims + pulsējoša "vēl nav pabeigts" indikācija
+
+**Veikts:** skat [[13_Sorting_Claims]] pilnu aprakstu.
+
+- `Pallet` paplašināts ar 4 jauniem laukiem: `sortingClaimedBy`, `sortingClaimedByEmail`, `sortingClaimedByName`, `sortingClaimedAt`
+- Helper-i `claimPalletForSorting()` un `releasePalletSortingClaim()` Firestore lib-ā
+- Jauni audit actions: `pallet_sorting_claimed`, `pallet_sorting_released`
+- `/skirosana` kartītes pārtaisītas:
+  - **"🙋 Paņemt uz šķirošanu"** poga (violet-600) — pieejama, ja nav claim
+  - Pēc claim: zaļa "Šķiro: Tu" (claimerim) vai zila "Šķiro: [vārds]" (citiem)
+  - **Pulsē sarkana** (`pulse-red-ring` CSS keyframe) kad `unsortedCount > 0`
+  - Klikšķis kartītē → atver detalizēti, BET tikai claimerim vai MASTER. Citiem rāda 🔒 "Atvērt var tikai atbildīgais"
+  - "Atlaist" poga claimerim; MASTER var atlaist citu claim (override)
+- `/skirosana/[id]` detalizētā lapā jauns guard — direct URL hits no non-claimera rāda amber "Šo manifestu šķiro [vārds]" panelis ar saiti atpakaļ
+- CSS: `.pulse-red-ring` keyframe ar 2s ciklu, ease-in-out, motion-safe
+- Avatāra circle ar lietotāja iniciāļiem violet-600 fonā
+
 ## 2026-05-24 — Loģistikas posms starp Manifesti un Šķirošanu
 
 **Veikts:**

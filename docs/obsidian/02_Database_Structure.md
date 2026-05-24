@@ -38,6 +38,10 @@ Posmā 1 + 2 paplašināts Jobalots metadatiem.
 | `location` | string \| null | **Posms 2** — piem. "Poland" |
 | `weightKg` | number \| null | **Posms 2** — paletes svars |
 | `palletCondition` | string \| null | **Posms 2** — piem. "Customer Return" |
+| `sortingClaimedBy` | string \| null | **Sorting claim** — atbildīgā darbinieka uid |
+| `sortingClaimedByEmail` | string \| null | Snapshot e-pasts (display, ja user-doc nav pieejams) |
+| `sortingClaimedByName` | string \| null | Snapshot displayName |
+| `sortingClaimedAt` | Timestamp \| null | serverTimestamp |
 | `status` | `PalletStatus` enum | **in_transit** (jauns Loģistika) / imported (saņemts) / in_warehouse_check / in_pricing / in_approval / ready_for_shopify / published / archived |
 | `createdBy` | string | uid |
 | `createdAt` | Timestamp | |
@@ -140,7 +144,7 @@ Posmā 1 + 4 + 5 būtiski paplašināts. Lauki sagrupēti pēc loģikas:
 |---|---|---|
 | `userId` | string | Kas izdarīja |
 | `userEmail` | string | Snapshot |
-| `action` | `AuditAction` enum | manifest_imported / product_approved / role_changed / **ai_enrichment_started** / **ai_enrichment_completed** / **product_listing_approved** / **product_listed_in_store** / **product_marked_sold** / **product_marked_disposed** / **product_customer_note_set** / **product_discount_changed** / **pallet_jobalots_synced** / ... |
+| `action` | `AuditAction` enum | manifest_imported / product_approved / role_changed / **ai_enrichment_started** / **ai_enrichment_completed** / **product_listing_approved** / **product_listed_in_store** / **product_marked_sold** / **product_marked_disposed** / **product_customer_note_set** / **product_discount_changed** / **pallet_jobalots_synced** / **pallet_received** / **pallet_sorting_claimed** / **pallet_sorting_released** / ... |
 | `entityType` | `AuditEntityType` | pallet / product / user / system / shopify_connection |
 | `entityId` | string | Mainītais dokuments |
 | `before` | object \| null | Iepriekšējais stāvoklis |

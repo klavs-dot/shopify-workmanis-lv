@@ -5,15 +5,21 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/lib/auth/RequireRole";
-import { listPallets } from "@/lib/firestore/pallets";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import {
+  listPallets,
+  claimPalletForSorting,
+  releasePalletSortingClaim,
+} from "@/lib/firestore/pallets";
 import { listProducts } from "@/lib/firestore/products";
+import { logAudit } from "@/lib/firestore/audit";
 import { PalletBadge } from "@/components/StatusBadge";
 import type { Pallet, Product } from "@/lib/types";
 
 interface Row {
   pallet: Pallet;
   total: number;
-  unsorted: number; // not_listed + listing_approved
+  unsorted: number; // not_listed + listing_approved (anything not yet on shelf)
 }
 
 export default function SkirosanaPage() {
@@ -27,27 +33,29 @@ export default function SkirosanaPage() {
 }
 
 function SkirosanaList() {
+  const { appUser } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    try {
+      const pallets = (await listPallets()).filter(
+        (p) => p.status !== "in_transit"
+      );
+      const all = await Promise.all(pallets.map((p) => listProducts({ palletId: p.id })));
+      setRows(pallets.map((p, i) => buildRow(p, all[i] || [])));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Neizdevās ielādēt");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        // Filter out pallets that are still in transit — they belong on
-        // /logistika until the warehouse marks them received.
-        const pallets = (await listPallets()).filter(
-          (p) => p.status !== "in_transit"
-        );
-        const all = await Promise.all(pallets.map((p) => listProducts({ palletId: p.id })));
-        setRows(pallets.map((p, i) => buildRow(p, all[i] || [])));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Neizdevās ielādēt");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void refresh();
   }, []);
 
   const visible = useMemo(() => {
@@ -56,6 +64,54 @@ function SkirosanaList() {
     return rows.filter((r) => r.unsorted > 0);
   }, [rows, showAll]);
 
+  const claim = async (pallet: Pallet) => {
+    if (!appUser) return;
+    setBusyId(pallet.id);
+    try {
+      await claimPalletForSorting(pallet.id, appUser);
+      await logAudit({
+        userId: appUser.uid,
+        userEmail: appUser.email,
+        action: "pallet_sorting_claimed",
+        entityType: "pallet",
+        entityId: pallet.id,
+        after: {
+          sortingClaimedBy: appUser.uid,
+          sortingClaimedByName: appUser.displayName || appUser.email,
+        },
+      });
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const release = async (pallet: Pallet) => {
+    if (!appUser) return;
+    setBusyId(pallet.id);
+    try {
+      await releasePalletSortingClaim(pallet.id);
+      await logAudit({
+        userId: appUser.uid,
+        userEmail: appUser.email,
+        action: "pallet_sorting_released",
+        entityType: "pallet",
+        entityId: pallet.id,
+        before: {
+          sortingClaimedBy: pallet.sortingClaimedBy,
+          sortingClaimedByName: pallet.sortingClaimedByName,
+        },
+      });
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Kļūda");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -63,7 +119,7 @@ function SkirosanaList() {
           <h1 className="text-xl font-semibold text-slate-900">Šķirošana</h1>
           <p className="text-sm text-slate-500">
             {showAll
-              ? "Visi importētie manifesti."
+              ? "Visi importētie manifesti, kas ir saņemti noliktavā."
               : "Manifesti, kuriem vēl ir nesašķiroti produkti."}
           </p>
         </div>
@@ -93,41 +149,180 @@ function SkirosanaList() {
       ) : visible.length === 0 ? (
         <div className="rounded-md border border-slate-200 bg-white p-6 text-sm text-slate-500">
           {showAll
-            ? "Vēl nav nevienas paletes."
-            : "Visi importētie manifesti jau ir sašķiroti. 🎉"}
+            ? "Vēl nav nevienas saņemtas paletes."
+            : "Visi saņemtie manifesti jau ir sašķiroti. 🎉"}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {visible.map((r) => (
-            <Link
+            <PalletCard
               key={r.pallet.id}
-              href={`/skirosana/${r.pallet.id}`}
-              className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-300 hover:shadow"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">
-                    {r.pallet.name}
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    <span className="font-mono">{r.pallet.manifestSku}</span>
-                    {r.pallet.source && ` · ${r.pallet.source}`}
-                  </div>
-                </div>
-                <PalletBadge status={r.pallet.status} />
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <Stat label="Produkti" value={r.total.toString()} />
-                <Stat
-                  label="Nesašķirotie"
-                  value={r.unsorted.toString()}
-                  tone={r.unsorted > 0 ? "amber" : "slate"}
-                />
-              </div>
-            </Link>
+              row={r}
+              currentUid={appUser?.uid}
+              isMaster={appUser?.role === "MASTER"}
+              busy={busyId === r.pallet.id}
+              onClaim={() => claim(r.pallet)}
+              onRelease={() => release(r.pallet)}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PalletCard({
+  row,
+  currentUid,
+  isMaster,
+  busy,
+  onClaim,
+  onRelease,
+}: {
+  row: Row;
+  currentUid: string | undefined;
+  isMaster: boolean;
+  busy: boolean;
+  onClaim: () => void;
+  onRelease: () => void;
+}) {
+  const { pallet, total, unsorted } = row;
+  const claimedByMe = !!currentUid && pallet.sortingClaimedBy === currentUid;
+  const claimedBySomeone = !!pallet.sortingClaimedBy;
+  const canOpen = claimedByMe || isMaster;
+  // Pulse red if there are still unsorted products on this pallet — i.e.
+  // anything that isn't yet listed_in_store / sold / out_of_stock / disposed.
+  const pulse = unsorted > 0;
+
+  // Card classes
+  const baseClasses =
+    "block rounded-lg border-2 bg-white p-4 shadow-sm transition";
+  const stateClasses = pulse
+    ? "pulse-red-ring"
+    : "border-slate-200 hover:border-slate-300 hover:shadow";
+
+  const TitleBlock = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-slate-900">
+          {pallet.name}
+        </div>
+        <div className="text-xs text-slate-500">
+          <span className="font-mono">{pallet.manifestSku}</span>
+          {pallet.source && ` · ${pallet.source}`}
+        </div>
+      </div>
+      <PalletBadge status={pallet.status} />
+    </div>
+  );
+
+  return (
+    <article className={`${baseClasses} ${stateClasses}`}>
+      {canOpen ? (
+        <Link
+          href={`/skirosana/${pallet.id}`}
+          className="block hover:opacity-95"
+        >
+          {TitleBlock}
+        </Link>
+      ) : (
+        <div className="opacity-90">{TitleBlock}</div>
+      )}
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <Stat label="Produkti" value={String(total)} />
+        <Stat
+          label="Nesašķirotie"
+          value={String(unsorted)}
+          tone={unsorted > 0 ? "amber" : "slate"}
+        />
+      </div>
+
+      {/* Claim section */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        {!claimedBySomeone ? (
+          <button
+            type="button"
+            onClick={onClaim}
+            disabled={busy}
+            className="w-full rounded-md bg-violet-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-violet-700 disabled:bg-slate-300"
+          >
+            {busy ? "Paņem…" : "🙋 Paņemt uz šķirošanu"}
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
+                claimedByMe
+                  ? "bg-emerald-50 text-emerald-900"
+                  : "bg-blue-50 text-blue-900"
+              }`}
+            >
+              <Avatar name={pallet.sortingClaimedByName ?? "?"} />
+              <div className="min-w-0">
+                <div className="truncate font-semibold">
+                  {claimedByMe ? "Šķiro: Tu" : `Šķiro: ${pallet.sortingClaimedByName}`}
+                </div>
+                {pallet.sortingClaimedAt?.toDate && (
+                  <div className="text-[10px] opacity-70">
+                    Paņemts{" "}
+                    {pallet.sortingClaimedAt
+                      .toDate()
+                      .toLocaleString("lv-LV", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-1.5">
+              {canOpen && (
+                <Link
+                  href={`/skirosana/${pallet.id}`}
+                  className="flex-1 rounded-md bg-slate-900 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-slate-800"
+                >
+                  Atvērt →
+                </Link>
+              )}
+              {(claimedByMe || isMaster) && (
+                <button
+                  type="button"
+                  onClick={onRelease}
+                  disabled={busy}
+                  className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                  title={isMaster && !claimedByMe ? "MASTER override release" : "Atlaist claim"}
+                >
+                  {claimedByMe ? "Atlaist" : "↺"}
+                </button>
+              )}
+              {!canOpen && (
+                <div className="flex-1 rounded-md bg-slate-100 px-3 py-1.5 text-center text-xs text-slate-500">
+                  🔒 Atvērt var tikai atbildīgais
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
+      {initials || "?"}
     </div>
   );
 }

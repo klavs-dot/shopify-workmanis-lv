@@ -243,6 +243,52 @@ function PalletDetail({ id }: { id: string }) {
     );
   }
 
+  // Sorting-claim guard. The pallet card on /skirosana already prevents
+  // non-claimers from clicking through, but a direct URL hit should also
+  // get blocked. MASTER bypasses the guard.
+  const claimedByMe = !!appUser && pallet.sortingClaimedBy === appUser.uid;
+  const isMaster = appUser?.role === "MASTER";
+  const isClaimed = !!pallet.sortingClaimedBy;
+  if (isClaimed && !claimedByMe && !isMaster) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
+          <div className="font-semibold text-amber-900">
+            🔒 Šo manifestu šķiro cits darbinieks
+          </div>
+          <div className="mt-1 text-amber-800">
+            Atbildīgais:{" "}
+            <strong>{pallet.sortingClaimedByName ?? pallet.sortingClaimedByEmail}</strong>
+            {pallet.sortingClaimedAt?.toDate && (
+              <>
+                {" "}— paņemts{" "}
+                {pallet.sortingClaimedAt
+                  .toDate()
+                  .toLocaleString("lv-LV", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+              </>
+            )}
+            .
+          </div>
+          <div className="mt-2 text-xs text-amber-800">
+            Tu vari redzēt sarakstu ar produktiem, bet nedari nekādas izmaiņas.
+            Ja domā, ka šis claim ir kļūda, runā ar MASTER lietotāju, lai to atlaiž.
+          </div>
+        </div>
+        <Link
+          href="/skirosana"
+          className="inline-block text-xs text-slate-500 underline-offset-2 hover:underline"
+        >
+          ← Atpakaļ uz Šķirošanas sarakstu
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

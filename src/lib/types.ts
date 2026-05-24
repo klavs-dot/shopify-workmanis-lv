@@ -64,6 +64,14 @@ export interface Pallet {
   /** Manifest condition, e.g. "Customer Return", "Brand New". */
   palletCondition: string | null;
 
+  /** Sorting "claim" — the warehouse worker who took responsibility for this
+   *  pallet's product-by-product sort. Other workers see who has it, but
+   *  cannot open the detail page (MASTER override always works). */
+  sortingClaimedBy: string | null;
+  sortingClaimedByEmail: string | null;
+  sortingClaimedByName: string | null;
+  sortingClaimedAt: Timestamp | null;
+
   status: PalletStatus;
   createdBy: string;
   createdAt: Timestamp | null;
@@ -229,6 +237,8 @@ export type AuditAction =
   | "manifest_imported"
   | "pallet_created"
   | "pallet_received"           // logistics → received → sent to sorting
+  | "pallet_sorting_claimed"    // worker took responsibility for sorting
+  | "pallet_sorting_released"   // claim released (by claimer or MASTER override)
   | "pallet_jobalots_synced"
   | "product_created"
   | "product_approved"
