@@ -29,8 +29,10 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 const envFile = path.resolve(process.cwd(), ".env.local");
-if (fs.existsSync(envFile)) dotenv.config({ path: envFile });
-else dotenv.config();
+// override: true so a blank env var inherited from the parent shell
+// (e.g. Claude Desktop's ANTHROPIC_API_KEY=) doesn't shadow .env.local.
+if (fs.existsSync(envFile)) dotenv.config({ path: envFile, override: true });
+else dotenv.config({ override: true });
 
 function must(name: string): string {
   const v = process.env[name];
