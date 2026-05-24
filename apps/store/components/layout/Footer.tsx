@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
+import { Logo } from "@/components/layout/Logo";
 
 // Minimal footer — jobalots.com stilā. 2 link grupas, copyright apakšā.
 export function Footer() {
@@ -9,14 +10,7 @@ export function Footer() {
     <footer className="mt-12 border-t border-neutral-200 bg-white text-sm text-neutral-700">
       <Container className="grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
         <div className="col-span-2 md:col-span-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-neutral-900 text-xs font-extrabold text-white">
-              14
-            </span>
-            <span className="text-base font-extrabold tracking-tight text-neutral-900">
-              14D
-            </span>
-          </div>
+          <Logo href={null} size="sm" />
           <p className="mt-3 text-xs text-neutral-600">
             Outlet, atvērtas preces un palešu atradumi par izdevīgām cenām.
           </p>

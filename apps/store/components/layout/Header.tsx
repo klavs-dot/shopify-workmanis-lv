@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Menu, Search, ShoppingCart, X } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
+import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -31,18 +32,7 @@ export function Header() {
         </button>
 
         {/* Brand */}
-        <Link
-          href="/"
-          aria-label="14D sākumlapa"
-          className="flex items-center gap-2"
-        >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-neutral-900 text-sm font-extrabold tracking-tighter text-white">
-            14
-          </span>
-          <span className="text-base font-extrabold tracking-tight text-neutral-900">
-            14D
-          </span>
-        </Link>
+        <Logo size="md" />
 
         {/* Desktop nav */}
         <nav className="ml-6 hidden gap-6 md:flex" aria-label="Galvenā navigācija">
@@ -108,7 +98,7 @@ function MobileDrawer({
         )}
       >
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-          <span className="text-base font-extrabold">14D</span>
+          <Logo size="sm" />
           <button
             type="button"
             aria-label="Aizvērt"

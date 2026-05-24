@@ -92,6 +92,28 @@ body {
   }
 }
 
+/* Logo cardboard box — periodically peeks out from behind the "D" with a
+ * small overshoot, lingers a moment, then settles back. Idle 80% of the
+ * cycle so it doesn't feel jittery. */
+.logo-box {
+  animation: logo-box-peek 4.5s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes logo-box-peek {
+  0%, 78%, 100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+  84% {
+    transform: translateX(5px) rotate(-4deg) scale(1.04);
+  }
+  90% {
+    transform: translateX(3px) rotate(2deg) scale(1.02);
+  }
+  95% {
+    transform: translateX(1px) rotate(0deg) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bubble-in {
     animation: none;
@@ -99,5 +121,8 @@ body {
   .typing-dot {
     animation: none;
     opacity: 0.7;
+  }
+  .logo-box {
+    animation: none;
   }
 }
