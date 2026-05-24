@@ -72,6 +72,12 @@ export interface Product {
   /** How many units the store currently has. Cards may show "Tikai 3 atlikušas". */
   stockQty?: number;
 
+  /** Public note from the admin system (e.g. "Iepakojums bojāts, prece OK").
+   *  When present, the card shows a yellow "Svarīgi! Apskati piezīmes!"
+   *  badge and the product page shows a prominent warning panel above the
+   *  description. null = no note. */
+  customerNote?: string | null;
+
   images: ProductImage[];
   /** When the product first appeared on the site — drives "Jaunums" badge. */
   publishedAt: string; // ISO date

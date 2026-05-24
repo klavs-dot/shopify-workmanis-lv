@@ -60,6 +60,8 @@ export const MOCK_PRODUCTS: Product[] = [
     condition: "open_box",
     availability: "in_stock",
     stockQty: 3,
+    customerNote:
+      "Oriģinālais iepakojums atvērts, bet pati prece nelietota. Iekļauts vāciņš, vads un USB-C lādētājs.",
     images: gallery(PLACEHOLDER_SEEDS[0], "Sony WH-1000XM4 austiņas"),
     publishedAt: "2026-05-20",
   },
@@ -103,6 +105,8 @@ export const MOCK_PRODUCTS: Product[] = [
     condition: "open_box",
     availability: "in_stock",
     stockQty: 2,
+    customerNote:
+      "Viens stūris ar nelielu skrāpējumu (~2 cm). Visas LED lampas un Bluetooth strādā nevainojami.",
     images: gallery(PLACEHOLDER_SEEDS[2], "Hollywood grima spogulis"),
     publishedAt: "2026-05-15",
   },
@@ -179,6 +183,8 @@ export const MOCK_PRODUCTS: Product[] = [
     condition: "open_box",
     availability: "in_stock",
     stockQty: 4,
+    customerNote:
+      "Klienta atgriezta prece — bija lietota dažas reizes. Akumulators pārbaudīts un strādā 30 km nobraukumu. Kosmētiski mazi skrāpējumi uz roktura.",
     images: gallery(PLACEHOLDER_SEEDS[6], "Elektriskais skrejritenis"),
     publishedAt: "2026-05-16",
   },
@@ -292,6 +298,8 @@ export const MOCK_PRODUCTS: Product[] = [
     condition: "used",
     availability: "in_stock",
     stockQty: 1,
+    customerNote:
+      "Profesionāli atjaunots aparāts no kafejnīcas. Brūveris notīrīts, gumijas blīves nomainītas. Korpusā vairāki kosmētiski skrāpējumi.",
     images: gallery("p113", "Philips LatteGo kafijas automāts"),
     publishedAt: "2026-05-14",
   },

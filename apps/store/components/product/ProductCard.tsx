@@ -1,25 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 
 import { discountPercent, formatMoney } from "@/lib/format-money";
 import { cn } from "@/lib/utils";
 import {
   PRODUCT_AVAILABILITY_LABEL,
-  PRODUCT_CONDITION_LABEL,
   type Product,
 } from "@/types/product";
 
 // Kompakta produkta kartīte jobalots.com stilā:
-// - mazs padding
-// - liels atlaides badge augšējā kreisajā stūrī (sarkans, neignorējams)
-// - condition badge labajā stūrī (tikai, ja nav "new")
-// - prece + brand + cena + salīdz cena
-// - bez sparkle/dekorāciju, bez liekiem stāvokļa pill
+// - sarkans atlaides badge augšējā kreisajā stūrī
+// - dzeltens "Svarīgi! Apskati piezīmes!" badge augšējā labajā stūrī, ja ir
+//   customerNote (no admin sistēmas — sk. apps/admin)
+// - nosaukums + cena + salīdz cena
+// - BEZ condition vai availability badges uz kartītes (skar tikai detaļu lapu)
 export function ProductCard({ product }: { product: Product }) {
   const cover = product.images[0];
   const discount = discountPercent(product.price, product.compareAtPrice);
   const isUnavailable =
     product.availability === "sold" || product.availability === "coming_soon";
+  const hasNote = !!product.customerNote;
 
   return (
     <Link
@@ -41,17 +42,22 @@ export function ProductCard({ product }: { product: Product }) {
           />
         ) : null}
 
-        {/* Discount badge — liels, sarkans, augšējais kreisais stūris */}
+        {/* Discount badge — sarkans, augšējais kreisais stūris */}
         {discount && (
           <div className="absolute left-2 top-2 rounded bg-red-600 px-2 py-0.5 text-xs font-extrabold tabular text-white shadow-sm">
             −{discount}%
           </div>
         )}
 
-        {/* Condition tag — diskrēts labajā stūrī, tikai ne-new */}
-        {product.condition !== "new" && (
-          <div className="absolute right-2 top-2 rounded bg-white/95 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700 ring-1 ring-neutral-200">
-            {PRODUCT_CONDITION_LABEL[product.condition]}
+        {/* Customer note badge — dzeltens, augšējais labais stūris */}
+        {hasNote && (
+          <div
+            className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-950 shadow-sm"
+            title={product.customerNote ?? undefined}
+          >
+            <AlertTriangle className="h-3 w-3" />
+            <span className="hidden sm:inline">Apskati piezīmes!</span>
+            <span className="sm:hidden">Piezīme</span>
           </div>
         )}
 

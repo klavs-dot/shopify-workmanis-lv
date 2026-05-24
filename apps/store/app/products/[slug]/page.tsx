@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, ShoppingCart } from "lucide-react";
+import { AlertTriangle, ChevronRight, ShoppingCart } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
 import { Badge } from "@/components/ui/Badge";
@@ -15,10 +15,7 @@ import {
   findRelatedProducts,
   MOCK_PRODUCTS,
 } from "@/lib/mock-products";
-import {
-  PRODUCT_AVAILABILITY_LABEL,
-  PRODUCT_CONDITION_LABEL,
-} from "@/types/product";
+import { PRODUCT_AVAILABILITY_LABEL } from "@/types/product";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -120,9 +117,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <Badge tone={availabilityTone}>
               {PRODUCT_AVAILABILITY_LABEL[product.availability]}
             </Badge>
-            <Badge tone="neutral">
-              {PRODUCT_CONDITION_LABEL[product.condition]}
-            </Badge>
             {product.stockQty != null && product.stockQty > 0 && product.stockQty <= 5 && (
               <span className="text-xs font-medium text-orange-700">
                 Tikai {product.stockQty} atlikušas
@@ -140,14 +134,33 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </span>
             )}
             {discount && (
-              <Badge tone="accent" className="!bg-[--color-accent] !text-white !ring-transparent">
+              <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-extrabold tabular text-white">
                 −{discount}%
-              </Badge>
+              </span>
             )}
           </div>
 
           {product.shortDescription && (
             <p className="text-sm text-neutral-700">{product.shortDescription}</p>
+          )}
+
+          {/* Customer note — prominent yellow alert above the buy buttons so
+           *  the shopper sees it before reaching for the cart. */}
+          {product.customerNote && (
+            <div
+              role="alert"
+              className="mt-2 flex items-start gap-3 rounded-md border-2 border-amber-300 bg-amber-50 p-3 text-sm"
+            >
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                  Svarīgi! Apskati piezīmes
+                </div>
+                <p className="mt-0.5 text-sm text-amber-950">
+                  {product.customerNote}
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Add to cart — currently a placeholder; will wire to Shopify cart soon. */}
