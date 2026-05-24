@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ROLE_BADGE_CLASS, ROLE_LABEL, hasPermission } from "@/lib/auth/roles";
+import { RobotLogo } from "@/components/RobotLogo";
 
 interface NavItem {
   href: string;
@@ -54,10 +55,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
         <div className="border-b border-slate-200 p-4">
-          <Link href="/dashboard" className="block">
-            <div className="text-sm font-semibold text-slate-900">shopify.workmanis.lv</div>
-            <div className="text-[11px] uppercase tracking-wider text-slate-500">
-              Pallet operations
+          <Link
+            href="/dashboard"
+            className="flex flex-col items-center gap-2 text-center"
+          >
+            <RobotLogo className="h-16 w-16" />
+            <div>
+              <div className="text-sm font-semibold text-slate-900">
+                shopify.workmanis.lv
+              </div>
+              <div className="text-[11px] uppercase tracking-wider text-slate-500">
+                Pallet operations
+              </div>
             </div>
           </Link>
         </div>
@@ -125,8 +134,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-x-hidden">
         <div className="border-b border-slate-200 bg-white px-4 py-3 md:hidden">
           <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="text-sm font-semibold">
-              shopify.workmanis.lv
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <RobotLogo className="h-8 w-8 shrink-0" />
+              <span className="text-sm font-semibold">shopify.workmanis.lv</span>
             </Link>
             {appUser && (
               <span

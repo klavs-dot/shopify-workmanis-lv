@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { RobotLogo } from "@/components/RobotLogo";
 
 function LoginInner() {
   const { signIn, firebaseUser, loading, configured } = useAuth();
@@ -37,8 +38,11 @@ function LoginInner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">shopify.workmanis.lv</h1>
+        <div className="flex flex-col items-center text-center">
+          <RobotLogo className="h-24 w-24" />
+          <h1 className="mt-2 text-lg font-semibold text-slate-900">
+            shopify.workmanis.lv
+          </h1>
           <p className="mt-1 text-xs text-slate-500">
             Atsevišķa palešu / Shopify sagatavošanas sistēma.
             <br />
