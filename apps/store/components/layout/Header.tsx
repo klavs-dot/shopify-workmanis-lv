@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, Search, ShoppingCart, X } from "lucide-react";
 
@@ -15,8 +16,15 @@ const NAV_LINKS = [
   { href: "/contacts", label: "Kontakti" },
 ] as const;
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2";
+
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname() ?? "/";
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 backdrop-blur">
@@ -26,7 +34,10 @@ export function Header() {
           type="button"
           aria-label="Atvērt izvēlni"
           onClick={() => setMobileOpen(true)}
-          className="rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:hidden"
+          className={cn(
+            "rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:hidden",
+            FOCUS_RING
+          )}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -34,23 +45,33 @@ export function Header() {
         {/* Brand */}
         <Logo size="md" />
 
-        {/* Desktop nav */}
+        {/* Desktop nav with active underline */}
         <nav className="ml-6 hidden gap-6 md:flex" aria-label="Galvenā navigācija">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-neutral-700 transition hover:text-neutral-900"
+              aria-current={isActive(l.href) ? "page" : undefined}
+              className={cn(
+                "relative rounded-sm text-sm font-medium transition-colors",
+                FOCUS_RING,
+                isActive(l.href)
+                  ? "text-neutral-900 after:absolute after:inset-x-0 after:-bottom-[17px] after:h-0.5 after:bg-neutral-900 md:after:-bottom-[21px]"
+                  : "text-neutral-600 hover:text-neutral-900"
+              )}
             >
               {l.label}
             </Link>
           ))}
         </nav>
 
-        {/* Search hint (visual only — real search lives on /products) */}
+        {/* Search — muted-input pattern so it reads as a field */}
         <Link
           href="/products"
-          className="ml-auto hidden items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-500 hover:border-neutral-300 hover:text-neutral-700 md:flex"
+          className={cn(
+            "ml-auto hidden w-52 items-center gap-2 rounded-full bg-neutral-100 px-3.5 py-2 text-xs text-neutral-500 transition-colors hover:bg-neutral-200/70 hover:text-neutral-700 md:flex lg:w-64",
+            FOCUS_RING
+          )}
         >
           <Search className="h-3.5 w-3.5" />
           Meklēt preces…
@@ -60,7 +81,10 @@ export function Header() {
         <Link
           href="/cart"
           aria-label="Iepirkumu grozs"
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:ml-2"
+          className={cn(
+            "ml-auto inline-flex items-center gap-1.5 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:ml-2",
+            FOCUS_RING
+          )}
         >
           <ShoppingCart className="h-5 w-5" />
           <span className="hidden text-sm font-medium md:inline">Grozs</span>
@@ -103,7 +127,7 @@ function MobileDrawer({
             type="button"
             aria-label="Aizvērt"
             onClick={onClose}
-            className="rounded-md p-2 hover:bg-neutral-100"
+            className={cn("rounded-md p-2 hover:bg-neutral-100", FOCUS_RING)}
           >
             <X className="h-5 w-5" />
           </button>
@@ -114,7 +138,10 @@ function MobileDrawer({
               key={l.href}
               href={l.href}
               onClick={onClose}
-              className="rounded-md px-3 py-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+              className={cn(
+                "rounded-md px-3 py-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100",
+                FOCUS_RING
+              )}
             >
               {l.label}
             </Link>
@@ -123,14 +150,20 @@ function MobileDrawer({
           <Link
             href="/about"
             onClick={onClose}
-            className="rounded-md px-3 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100"
+            className={cn(
+              "rounded-md px-3 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100",
+              FOCUS_RING
+            )}
           >
             Par 14D
           </Link>
           <Link
             href="/returns"
             onClick={onClose}
-            className="rounded-md px-3 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100"
+            className={cn(
+              "rounded-md px-3 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100",
+              FOCUS_RING
+            )}
           >
             Atgriešana
           </Link>

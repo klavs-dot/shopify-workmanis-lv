@@ -10,6 +10,8 @@ import {
   ProductFilters,
   type FilterState,
 } from "@/components/product/ProductFilters";
+import { TrustSection } from "@/components/home/TrustSection";
+import { CATEGORIES } from "@/lib/categories";
 import { MOCK_PRODUCTS } from "@/lib/mock-products";
 import { cn } from "@/lib/utils";
 
@@ -63,9 +65,18 @@ export default function ProductsPage() {
     return out;
   }, [filters, search, sort]);
 
+  // Per-category counts for the chip row.
+  const categoryCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of MOCK_PRODUCTS) {
+      m.set(p.categorySlug, (m.get(p.categorySlug) ?? 0) + 1);
+    }
+    return m;
+  }, []);
+
   return (
     <Container className="py-8 md:py-10">
-      <header className="mb-6">
+      <header className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl">
           Visi produkti
         </h1>
@@ -73,6 +84,51 @@ export default function ProductsPage() {
           Atrastas {visible.length} preces. Filtrē, sortē un izvēlies.
         </p>
       </header>
+
+      {/* Trust strip — answers the returned-goods objection right where the
+       *  buying decision happens. */}
+      <TrustSection compact />
+
+      {/* Category chips — faster than the sidebar select, visible on mobile */}
+      <div className="mb-4 mt-3 flex gap-1.5 overflow-x-auto pb-1 snap-row">
+        <button
+          type="button"
+          onClick={() => setFilters((f) => ({ ...f, category: "" }))}
+          className={cn(
+            "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
+            !filters.category
+              ? "bg-neutral-900 text-white"
+              : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+          )}
+        >
+          Visas ({MOCK_PRODUCTS.length})
+        </button>
+        {CATEGORIES.map((c) => {
+          const count = categoryCounts.get(c.slug) ?? 0;
+          if (count === 0) return null;
+          const active = filters.category === c.slug;
+          return (
+            <button
+              key={c.slug}
+              type="button"
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  category: active ? "" : c.slug,
+                }))
+              }
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
+                active
+                  ? "bg-neutral-900 text-white"
+                  : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+              )}
+            >
+              {c.name} ({count})
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">

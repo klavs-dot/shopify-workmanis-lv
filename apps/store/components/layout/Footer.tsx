@@ -7,7 +7,7 @@ import { Logo } from "@/components/layout/Logo";
 export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="mt-12 border-t border-neutral-200 bg-white text-sm text-neutral-700">
+    <footer className="mt-16 border-t border-neutral-200 bg-white text-sm text-neutral-700 md:mt-20">
       <Container className="grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
         <div className="col-span-2 md:col-span-1">
           <Logo href={null} size="sm" />
@@ -35,8 +35,16 @@ export function Footer() {
       </Container>
 
       <div className="border-t border-neutral-200">
-        <Container className="py-3 text-center text-[11px] text-neutral-500">
-          © {year} 14D
+        <Container className="flex items-center justify-between py-3 text-xs text-neutral-500">
+          <span>© {year} 14D</span>
+          <div className="flex gap-4">
+            <Link href="/terms" className="hover:text-neutral-700">
+              Noteikumi
+            </Link>
+            <Link href="/privacy" className="hover:text-neutral-700">
+              Privātums
+            </Link>
+          </div>
         </Container>
       </div>
     </footer>

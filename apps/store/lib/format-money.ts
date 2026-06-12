@@ -26,3 +26,14 @@ export function discountPercent(
   if (pct <= 0) return null;
   return Math.min(99, pct);
 }
+
+/** Absolute EUR saved vs the compare-at price, or null when no discount.
+ *  On 50–90% outlet discounts the absolute amount is often the stronger
+ *  trigger than the percentage, especially on higher-ticket items. */
+export function savings(
+  price: Money,
+  compareAt: Money | undefined
+): Money | null {
+  if (!compareAt || compareAt.amount <= price.amount) return null;
+  return { amount: compareAt.amount - price.amount, currency: price.currency };
+}

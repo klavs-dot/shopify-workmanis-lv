@@ -6,8 +6,11 @@
   --muted: #f5f5f5;
   --muted-foreground: #71717a;
   --border: #e5e5e5;
-  --accent: #ea580c; /* orange-600 — punchy outlet vibe without going neon */
+  /* Brand accent = the chat/logo blue. Sale red is its own token. */
+  --accent: #2563eb;
   --accent-foreground: #ffffff;
+  --sale: #dc2626;
+  --sale-foreground: #ffffff;
 }
 
 @theme inline {
@@ -18,6 +21,8 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-sale: var(--sale);
+  --color-sale-foreground: var(--sale-foreground);
 }
 
 html,
@@ -113,13 +118,16 @@ body {
 }
 
 /* Logo cardboard box — periodically peeks out from behind "D" with a
- * small lift + tilt + overshoot, then settles. Idle 78% of the cycle so
- * it never feels jittery. transform-box: fill-box anchors rotate inside
- * the SVG group's own bbox (instead of the page origin). */
+ * small lift + tilt + overshoot, then settles. Idle 75% of the cycle so
+ * it never feels jittery. transform-box: fill-box anchors the pivot inside
+ * the SVG group's own bbox — no inline transform-origin should override it
+ * (a px-based inline origin would land outside the viewBox and make the
+ * rotate orbit instead of tilt). */
 .logo-box {
   animation: logo-box-peek 4.5s ease-in-out infinite;
   transform-box: fill-box;
-  transform-origin: 0% 50%;
+  transform-origin: 15% 60%;
+  will-change: transform;
 }
 @keyframes logo-box-peek {
   0%, 75%, 100% {
@@ -136,6 +144,20 @@ body {
   }
 }
 
+/* Neon glow pulse — animate layer opacity only (never filter primitives,
+ * those force a full re-render of the filter chain every frame). */
+.logo-glow-layer {
+  animation: logo-glow-pulse 3.2s ease-in-out infinite;
+}
+@keyframes logo-glow-pulse {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bubble-in {
     animation: none;
@@ -146,6 +168,10 @@ body {
   }
   .logo-box {
     animation: none;
+  }
+  .logo-glow-layer {
+    animation: none;
+    opacity: 0.7;
   }
   .word-fade {
     animation: none;
