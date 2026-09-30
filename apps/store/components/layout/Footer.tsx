@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/layout/Logo";
+import { COMPANY } from "@/lib/company";
 
 // Minimal footer — jobalots.com stilā. 2 link grupas, copyright apakšā.
 export function Footer() {
@@ -35,8 +36,11 @@ export function Footer() {
       </Container>
 
       <div className="border-t border-neutral-200">
-        <Container className="flex items-center justify-between py-3 text-xs text-neutral-500">
-          <span>© {year} 14D</span>
+        <Container className="flex flex-col gap-2 py-3 text-xs text-neutral-500 md:flex-row md:items-center md:justify-between">
+          <span>
+            © {year} {COMPANY.name} · Reģ. Nr. {COMPANY.regNo} · PVN Nr.{" "}
+            {COMPANY.vatNo} · {COMPANY.legalAddress}
+          </span>
           <div className="flex gap-4">
             <Link href="/terms" className="hover:text-neutral-700">
               Noteikumi

@@ -16,7 +16,7 @@ import type { Product } from "@/types/product";
 
 const STOREFRONT_DOMAIN = process.env.NEXT_PUBLIC_STORE_DOMAIN ?? "";
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ?? "";
-const API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-04";
+const API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2026-07";
 
 export function isShopifyConfigured(): boolean {
   return Boolean(STOREFRONT_DOMAIN && STOREFRONT_TOKEN);

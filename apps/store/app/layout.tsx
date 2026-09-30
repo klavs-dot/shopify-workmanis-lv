@@ -6,6 +6,9 @@ import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://14d.lv";
+// Līdz palaišanai (mock dati) meklētājiem neindeksēt. Palaižot Vercel env
+// uzstāda NEXT_PUBLIC_ALLOW_INDEXING=true.
+const ALLOW_INDEXING = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -16,7 +19,6 @@ export const metadata: Metadata = {
   description:
     "14D piedāvā atlasītas noliktavas, outlet un palešu preces par izdevīgām cenām. Jaunas preces regulāri un ierobežotā daudzumā.",
   applicationName: "14D",
-  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: "14D",
@@ -32,7 +34,9 @@ export const metadata: Metadata = {
     description:
       "Atlasītas noliktavas, outlet un palešu preces vienā vietā. Ierobežots daudzums.",
   },
-  robots: { index: true, follow: true },
+  robots: ALLOW_INDEXING
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

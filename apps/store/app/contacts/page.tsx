@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Building2, Mail, MapPin, Phone } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
+import { COMPANY } from "@/lib/company";
 import { ContactForm } from "./ContactForm";
 
 export const metadata: Metadata = {
@@ -43,11 +44,22 @@ export default function ContactsPage() {
           />
           <ContactRow
             icon={<MapPin className="h-4 w-4" />}
-            label="Adrese"
-            value={<span className="text-neutral-500">— precizēsim drīzumā —</span>}
+            label="Juridiskā adrese"
+            value={<span className="text-neutral-900">{COMPANY.legalAddress}</span>}
+          />
+          <ContactRow
+            icon={<Building2 className="h-4 w-4" />}
+            label="Pārdevējs"
+            value={
+              <div className="text-neutral-900">
+                <div className="font-medium">{COMPANY.name}</div>
+                <div>Reģ. Nr. {COMPANY.regNo}</div>
+                <div>PVN Nr. {COMPANY.vatNo}</div>
+              </div>
+            }
           />
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-            Karte un fiziskās noliktavas adrese tiks pievienota, kad būs apstiprināta.
+            Noliktavas (preču saņemšanas) adrese tiks pievienota, kad būs apstiprināta.
           </div>
         </div>
 
