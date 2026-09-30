@@ -3,8 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
-import { CATEGORIES } from "@/lib/categories";
-import { countProductsByCategory } from "@/lib/mock-products";
+import { getCategories } from "@/lib/shopify";
 
 export const metadata: Metadata = {
   title: "Kategorijas",
@@ -12,18 +11,28 @@ export const metadata: Metadata = {
     "Pārlūko 14D preces pa kategorijām — elektronika, instrumenti, sadzīves tehnika, sports un daudz kas cits.",
 };
 
-export default function CategoriesPage() {
+// Preču skaiti nāk no Shopify kataloga (kešots 60 s). Ja katalogs nav
+// sasniedzams, skaitus nerādām un to pasakām.
+export const revalidate = 60;
+
+export default async function CategoriesPage() {
+  const { categories, unavailable } = await getCategories();
   return (
     <Container className="py-8 md:py-10">
       <header className="border-b border-neutral-200 pb-3">
         <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
           Kategorijas
         </h1>
+        {unavailable && (
+          <p className="mt-1 text-sm text-neutral-600">
+            Preču skaitu šobrīd neizdevās ielādēt. Lūdzu, mēģini vēlreiz pēc brīža.
+          </p>
+        )}
       </header>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {CATEGORIES.map((c) => {
-          const count = countProductsByCategory(c.slug);
+        {categories.map((c) => {
+          const count = c.productCount;
           return (
             <Link
               key={c.slug}
@@ -44,9 +53,11 @@ export default function CategoriesPage() {
                 <div className="text-sm font-semibold text-white md:text-base">
                   {c.name}
                 </div>
-                <div className="text-[11px] text-white/85">
-                  {count} {count === 1 ? "prece" : "preces"}
-                </div>
+                {!unavailable && (
+                  <div className="text-[11px] text-white/85">
+                    {count} {count === 1 ? "prece" : "preces"}
+                  </div>
+                )}
               </div>
             </Link>
           );

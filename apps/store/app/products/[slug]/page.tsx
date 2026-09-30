@@ -1,34 +1,51 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ChevronRight, ShoppingCart } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { ProductPurchase } from "@/components/cart/ProductPurchase";
 import { discountPercent, formatMoney } from "@/lib/format-money";
 import { findCategoryBySlug } from "@/lib/categories";
 import {
-  findProductBySlug,
-  findRelatedProducts,
-  MOCK_PRODUCTS,
-} from "@/lib/mock-products";
-import { PRODUCT_AVAILABILITY_LABEL } from "@/types/product";
+  getProductBySlug,
+  getProductSlugs,
+  getRelatedProducts,
+  isShopifyConfigured,
+} from "@/lib/shopify";
+import { PRODUCT_AVAILABILITY_LABEL, type Product } from "@/types/product";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// Pre-render all known product pages at build time.
-export function generateStaticParams() {
-  return MOCK_PRODUCTS.map((p) => ({ slug: p.slug }));
+// Pre-render the sellable catalogue at build time; anything else (new or
+// sold products) renders on first request and is cached like the rest (ISR).
+// Only effective in mock mode: with Shopify configured the layout's cart
+// count reads a cookie, so this page renders per request (the product data
+// itself still comes from the 60 s catalog cache) — see app/layout.tsx.
+export async function generateStaticParams() {
+  const slugs = await getProductSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
+
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = findProductBySlug(slug);
+  // A Storefront outage must reach the page's error boundary (app/error.tsx);
+  // a throw here would skip it and serve Next's bare 500 page instead. Keep
+  // the site's default title then — "Prece nav atrasta" only for a real miss.
+  let product: Product | null;
+  try {
+    product = await getProductBySlug(slug);
+  } catch {
+    return {};
+  }
   if (!product) return { title: "Prece nav atrasta" };
   return {
     title: product.title,
@@ -54,13 +71,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const product = findProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
   const category = findCategoryBySlug(product.categorySlug);
-  const related = findRelatedProducts(product, 4);
+  const related = await getRelatedProducts(product, 4);
   const discount = discountPercent(product.price, product.compareAtPrice);
-  const isAvailable = product.availability === "in_stock";
 
   const availabilityTone =
     product.availability === "in_stock"
@@ -163,27 +179,18 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Add to cart — currently a placeholder; will wire to Shopify cart soon. */}
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={!isAvailable}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300 sm:flex-none"
-              title={
-                isAvailable
-                  ? "Drīzumā pieslēgsim Shopify checkout"
-                  : "Šobrīd nav pieejams"
-              }
-            >
-              <ShoppingCart className="h-4 w-4" />
-              {isAvailable ? "Pievienot grozam" : "Nav pieejams"}
-            </button>
+          {/* Add to cart (Shopify cart) — disabled for sold items and while
+           *  the store runs on mock data. */}
+          <div className="mt-4 flex flex-wrap items-start gap-3">
+            <ProductPurchase product={product} />
             <LinkButton href="/products" variant="outline" size="lg">
               ← Atpakaļ uz katalogu
             </LinkButton>
           </div>
           <div className="text-[11px] text-neutral-500">
-            Pirkumu pabeigsi drošā Shopify checkout vidē (pieslēgšana drīzumā).
+            {isShopifyConfigured()
+              ? "Pirkumu pabeigsi drošā Shopify checkout vidē."
+              : "Pasūtīšana tiešsaistē būs pieejama drīzumā."}
           </div>
 
           {/* Highlights */}

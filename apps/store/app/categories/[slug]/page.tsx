@@ -6,7 +6,8 @@ import { ChevronRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { CATEGORIES, findCategoryBySlug } from "@/lib/categories";
-import { findProductsByCategory } from "@/lib/mock-products";
+import { DEFAULT_PRODUCT_LIST_QUERY, productListHref } from "@/lib/catalog-query";
+import { getCategoryProducts } from "@/lib/shopify";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -15,6 +16,12 @@ interface PageProps {
 export function generateStaticParams() {
   return CATEGORIES.map((c) => ({ slug: c.slug }));
 }
+
+// Only the 8 known categories exist. Product lists come from the 60 s catalog
+// cache; ISR (`revalidate`) only applies in mock mode — with Shopify the
+// layout's cart count makes every page per-request (see app/layout.tsx).
+export const dynamicParams = false;
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -32,7 +39,7 @@ export default async function CategoryDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const category = findCategoryBySlug(slug);
   if (!category) notFound();
-  const products = findProductsByCategory(slug);
+  const { products, total, unavailable } = await getCategoryProducts(slug);
 
   return (
     <Container className="py-8 md:py-10">
@@ -59,15 +66,34 @@ export default async function CategoryDetailPage({ params }: PageProps) {
         {category.tagline && (
           <p className="mt-1 text-sm text-neutral-600">{category.tagline}</p>
         )}
-        <div className="mt-2 text-xs text-neutral-500">
-          {products.length} {products.length === 1 ? "prece" : "preces"}
-        </div>
+        {!unavailable && (
+          <div className="mt-2 text-xs text-neutral-500">
+            {total} {total === 1 ? "prece" : "preces"}
+          </div>
+        )}
       </header>
 
       <ProductGrid
         products={products}
-        emptyMessage="Šajā kategorijā vēl nav produktu. Atgriezies drīzumā!"
+        emptyMessage={
+          unavailable
+            ? "Preces šobrīd neizdevās ielādēt. Lūdzu, mēģini vēlreiz pēc brīža."
+            : "Šajā kategorijā vēl nav produktu. Atgriezies drīzumā!"
+        }
       />
+
+      {/* Category pages show the first page only; the full, filterable list
+       *  lives in the catalogue. */}
+      {total > products.length && (
+        <div className="mt-6 text-center">
+          <Link
+            href={productListHref(DEFAULT_PRODUCT_LIST_QUERY, { cat: category.slug })}
+            className="inline-flex items-center justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+          >
+            Skatīt visas {total} preces katalogā →
+          </Link>
+        </div>
+      )}
     </Container>
   );
 }

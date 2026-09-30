@@ -1,39 +1,46 @@
-import type { Money, Product } from "./product";
+import type { Money, ProductImage } from "./product";
+
+// 14d.lv cart model. The cart itself lives in Shopify (Storefront Cart API);
+// the browser only keeps its id in the httpOnly "14d_cart" cookie, and
+// lib/shopify maps the Storefront cart into these shapes on every read.
+// Payment happens in the Shopify-hosted checkout (Cart.checkoutUrl).
 
 export interface CartItem {
+  /** Shopify cart line GID — what cartLinesUpdate / cartLinesRemove take. */
+  lineId: string;
+  /** Shopify variant GID (the line's merchandise). */
+  variantId: string;
   productSlug: string;
-  /** Cached at the time of "Add to cart" so the cart row renders even if the
-   *  product is later updated server-side. The checkout call still hits
-   *  Shopify with the authoritative variantId. */
   productTitle: string;
-  productImage?: string;
+  /** Variant name; undefined for single-variant products ("Default Title"). */
+  variantTitle?: string;
+  productImage?: ProductImage;
   unitPrice: Money;
+  /** Line cost as Shopify computes it (unit price × quantity). */
+  lineTotal: Money;
   quantity: number;
-  /** Shopify variant id — required when we wire up the real checkout. */
-  variantId?: string;
+  /** Highest quantity this line may have — see maxCartQuantity(). */
+  maxQuantity: number;
+  /** False when the item sold out after it was added to the cart. */
+  available: boolean;
 }
 
 export interface Cart {
+  /** Shopify cart GID (stored in the "14d_cart" cookie). */
+  id: string;
   items: CartItem[];
+  totalQuantity: number;
+  /** Before delivery — delivery is chosen in the Shopify checkout. */
   subtotal: Money;
-  /** Shopify-hosted checkout URL, populated when checkout is created. */
-  checkoutUrl?: string;
+  /** Shopify-hosted checkout for this cart. */
+  checkoutUrl: string;
 }
 
-export const EMPTY_CART: Cart = {
-  items: [],
-  subtotal: { amount: 0, currency: "EUR" },
-};
-
-export function cartItemFromProduct(
-  product: Pick<Product, "slug" | "title" | "images" | "price">,
-  quantity = 1
-): CartItem {
-  return {
-    productSlug: product.slug,
-    productTitle: product.title,
-    productImage: product.images[0]?.url,
-    unitPrice: product.price,
-    quantity,
-  };
+/** Most 14D listings are one-off items, so a cart line holds one unit unless
+ *  Shopify reports more than one in stock (variant.quantityAvailable). When
+ *  Shopify hides the stock level (null) the one-unit rule applies. */
+export function maxCartQuantity(quantityAvailable: number | null | undefined): number {
+  return typeof quantityAvailable === "number" && quantityAvailable > 1
+    ? Math.floor(quantityAvailable)
+    : 1;
 }

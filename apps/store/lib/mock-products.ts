@@ -1,13 +1,18 @@
 // Mock product catalogue for 14d.lv.
 //
-// Replace with Shopify Storefront API output once `lib/shopify.ts` is live.
+// Fallback only: lib/shopify serves this when SHOPIFY_STORE_DOMAIN isn't set
+// (local dev, preview deploys without credentials). Don't import it from
+// pages/components — go through the lib/shopify data layer, which applies the
+// same filtering/sorting to mock and Shopify products.
 // Field names here match the public Product type — they intentionally do NOT
 // include any admin-only fields (purchasePrice, manifestSku, AI status, etc.).
 //
-// Images use picsum.photos for stable placeholders; we'll switch to real
-// product photos once admin → Shopify sync lands.
+// Images use picsum.photos for stable placeholders.
 
 import type { Product, ProductImage } from "@/types/product";
+
+/** Mock entries omit the Shopify identifiers — derived below. */
+type MockProduct = Omit<Product, "handle" | "variantId">;
 
 const PLACEHOLDER_SEEDS = [
   "p101",
@@ -38,7 +43,7 @@ function gallery(seed: string, alt: string): ProductImage[] {
   ];
 }
 
-export const MOCK_PRODUCTS: Product[] = [
+const MOCK_ENTRIES: MockProduct[] = [
   // ELEKTRONIKA
   {
     slug: "bluetooth-austinas-sony-wh-1000xm4",
@@ -361,40 +366,10 @@ export const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
-// ---- Selection helpers ----
-
-export function findProductBySlug(slug: string): Product | undefined {
-  return MOCK_PRODUCTS.find((p) => p.slug === slug);
-}
-
-export function findProductsByCategory(slug: string): Product[] {
-  return MOCK_PRODUCTS.filter((p) => p.categorySlug === slug);
-}
-
-export function findRelatedProducts(product: Product, limit = 4): Product[] {
-  return MOCK_PRODUCTS.filter(
-    (p) => p.categorySlug === product.categorySlug && p.slug !== product.slug
-  ).slice(0, limit);
-}
-
-export function getFeaturedProducts(limit = 8): Product[] {
-  // Sort newest first, then bias towards products with a visible discount.
-  return [...MOCK_PRODUCTS]
-    .sort((a, b) => {
-      const aDiscount = a.compareAtPrice ? 1 : 0;
-      const bDiscount = b.compareAtPrice ? 1 : 0;
-      if (bDiscount !== aDiscount) return bDiscount - aDiscount;
-      return b.publishedAt.localeCompare(a.publishedAt);
-    })
-    .slice(0, limit);
-}
-
-export function getLatestProducts(limit = 8): Product[] {
-  return [...MOCK_PRODUCTS]
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, limit);
-}
-
-export function countProductsByCategory(slug: string): number {
-  return MOCK_PRODUCTS.filter((p) => p.categorySlug === slug).length;
-}
+// slug doubles as the handle; the variant id is a placeholder that is never
+// sent to Shopify (add-to-cart is disabled while running on mock data).
+export const MOCK_PRODUCTS: Product[] = MOCK_ENTRIES.map((p) => ({
+  ...p,
+  handle: p.slug,
+  variantId: `mock-variant-${p.id}`,
+}));

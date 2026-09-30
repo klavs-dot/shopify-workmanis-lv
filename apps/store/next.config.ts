@@ -7,12 +7,24 @@ const nextConfig: NextConfig = {
   // admin sources when bundling server functions.
   outputFileTracingRoot: path.join(__dirname),
 
-  // Mock data uses placeholder images for now. Add real Shopify CDN and
-  // any other future image hosts here when Storefront API lands.
+  // Only hosts/paths the store actually renders — /_next/image must not act
+  // as an open (billed) image proxy.
+  //   cdn.shopify.com/s/files/**   store product/collection images (narrow to
+  //                                /s/files/1/<shop-id>/** once the id is known)
+  //   /mock-shop-production-media  mock.shop images (development only)
+  //   picsum.photos                mock catalogue (lib/mock-products.ts) and the
+  //                                placeholder category covers in
+  //                                lib/categories.ts — drop together with mock
+  //                                mode once every category has a Shopify
+  //                                collection image.
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "cdn.shopify.com" },
+      { protocol: "https", hostname: "cdn.shopify.com", pathname: "/s/files/**" },
+      {
+        protocol: "https",
+        hostname: "cdn.shopify.com",
+        pathname: "/mock-shop-production-media/**",
+      },
       { protocol: "https", hostname: "picsum.photos" },
     ],
   },

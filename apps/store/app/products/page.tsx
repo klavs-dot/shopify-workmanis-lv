@@ -1,78 +1,48 @@
-"use client";
-
-import { useMemo, useState } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { CatalogPagination } from "@/components/product/CatalogPagination";
 import {
-  DEFAULT_FILTER_STATE,
+  CatalogNavigationProvider,
   ProductFilters,
-  type FilterState,
+  ProductToolbar,
 } from "@/components/product/ProductFilters";
 import { TrustSection } from "@/components/home/TrustSection";
 import { CATEGORIES } from "@/lib/categories";
-import { MOCK_PRODUCTS } from "@/lib/mock-products";
+import {
+  hasActiveFilters,
+  parseProductListQuery,
+  productListHref,
+} from "@/lib/catalog-query";
+import { getProducts } from "@/lib/shopify";
 import { cn } from "@/lib/utils";
 
-type Sort = "featured" | "newest" | "price_asc" | "price_desc";
+export const metadata: Metadata = {
+  title: "Visi produkti",
+  description:
+    "Visas 14D preces vienuviet — outlet, atvērtas un palešu preces par izdevīgām cenām. Filtrē pēc kategorijas, stāvokļa un cenas.",
+  alternates: { canonical: "/products" },
+};
 
-export default function ProductsPage() {
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<Sort>("featured");
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+interface PageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-  const visible = useMemo(() => {
-    let out = MOCK_PRODUCTS.slice();
-    if (filters.category) {
-      out = out.filter((p) => p.categorySlug === filters.category);
-    }
-    if (filters.condition) {
-      out = out.filter((p) => p.condition === filters.condition);
-    }
-    const maxPriceN = filters.maxPrice ? parseFloat(filters.maxPrice) : NaN;
-    if (Number.isFinite(maxPriceN) && maxPriceN > 0) {
-      out = out.filter((p) => p.price.amount <= maxPriceN);
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      out = out.filter((p) =>
-        [p.title, p.brand ?? "", p.shortDescription ?? ""].some((s) =>
-          s.toLowerCase().includes(q)
-        )
-      );
-    }
-    switch (sort) {
-      case "newest":
-        out.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-        break;
-      case "price_asc":
-        out.sort((a, b) => a.price.amount - b.price.amount);
-        break;
-      case "price_desc":
-        out.sort((a, b) => b.price.amount - a.price.amount);
-        break;
-      default:
-        // featured: discounted first, then newest
-        out.sort((a, b) => {
-          const aD = a.compareAtPrice ? 1 : 0;
-          const bD = b.compareAtPrice ? 1 : 0;
-          if (bD !== aD) return bD - aD;
-          return b.publishedAt.localeCompare(a.publishedAt);
-        });
-    }
-    return out;
-  }, [filters, search, sort]);
+// Katalogs — server komponente. Filtri, meklēšana, kārtošana un lapošana
+// dzīvo URL (?q=&cat=&condition=&min=&max=&sort=&page=), tāpēc lapa renderējas
+// katram pieprasījumam; pats katalogs nāk no kešota Shopify snapshot (60 s).
+export default async function ProductsPage({ searchParams }: PageProps) {
+  const query = parseProductListQuery(await searchParams);
+  const result = await getProducts(query);
+  const filtered = hasActiveFilters(query);
 
-  // Per-category counts for the chip row.
-  const categoryCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of MOCK_PRODUCTS) {
-      m.set(p.categorySlug, (m.get(p.categorySlug) ?? 0) + 1);
-    }
-    return m;
-  }, []);
+  const emptyMessage = result.unavailable
+    ? "Katalogu šobrīd neizdevās ielādēt. Lūdzu, mēģini vēlreiz pēc brīža."
+    : filtered
+    ? "Nevienai precei nav atbilstības. Pamēģini citus filtrus."
+    : "Jaunas preces tiek gatavotas publicēšanai — ieskaties vēlāk!";
 
   return (
     <Container className="py-8 md:py-10">
@@ -81,7 +51,7 @@ export default function ProductsPage() {
           Visi produkti
         </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Atrastas {visible.length} preces. Filtrē, sortē un izvēlies.
+          Atrastas {result.total} preces. Filtrē, sortē un izvēlies.
         </p>
       </header>
 
@@ -91,137 +61,74 @@ export default function ProductsPage() {
 
       {/* Category chips — faster than the sidebar select, visible on mobile */}
       <div className="mb-4 mt-3 flex gap-1.5 overflow-x-auto pb-1 snap-row">
-        <button
-          type="button"
-          onClick={() => setFilters((f) => ({ ...f, category: "" }))}
-          className={cn(
-            "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
-            !filters.category
-              ? "bg-neutral-900 text-white"
-              : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
-          )}
+        <CategoryChip
+          href={productListHref(query, { cat: "" })}
+          active={!query.cat}
         >
-          Visas ({MOCK_PRODUCTS.length})
-        </button>
+          Visas ({result.catalogTotal})
+        </CategoryChip>
         {CATEGORIES.map((c) => {
-          const count = categoryCounts.get(c.slug) ?? 0;
-          if (count === 0) return null;
-          const active = filters.category === c.slug;
+          const count = result.categoryCounts[c.slug] ?? 0;
+          const active = query.cat === c.slug;
+          if (count === 0 && !active) return null;
           return (
-            <button
+            <CategoryChip
               key={c.slug}
-              type="button"
-              onClick={() =>
-                setFilters((f) => ({
-                  ...f,
-                  category: active ? "" : c.slug,
-                }))
-              }
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
-                active
-                  ? "bg-neutral-900 text-white"
-                  : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
-              )}
+              href={productListHref(query, { cat: active ? "" : c.slug })}
+              active={active}
             >
               {c.name} ({count})
-            </button>
+            </CategoryChip>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Meklēt preci, brendu vai aprakstu…"
-            className="w-full rounded-md border border-neutral-300 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
-          />
-        </div>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
-          aria-label="Sortēšana"
-        >
-          <option value="featured">Ieteiktas</option>
-          <option value="newest">Jaunākās</option>
-          <option value="price_asc">Cena: lētākās pirmās</option>
-          <option value="price_desc">Cena: dārgākās pirmās</option>
-        </select>
-        <button
-          type="button"
-          onClick={() => setMobileFiltersOpen(true)}
-          className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium lg:hidden"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtri
-        </button>
-      </div>
+      <CatalogNavigationProvider query={query}>
+        <ProductToolbar />
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Desktop filters */}
-        <div className="hidden lg:block">
-          <ProductFilters
-            state={filters}
-            onChange={setFilters}
-            onReset={() => setFilters(DEFAULT_FILTER_STATE)}
-          />
-        </div>
-
-        {/* Grid */}
-        <div>
-          <ProductGrid
-            products={visible}
-            emptyMessage="Nevienai precei nav atbilstības. Pamēģini citus filtrus."
-          />
-        </div>
-      </div>
-
-      {/* Mobile filters drawer */}
-      <div
-        aria-hidden={!mobileFiltersOpen}
-        className={cn(
-          "fixed inset-0 z-50 lg:hidden",
-          mobileFiltersOpen ? "pointer-events-auto" : "pointer-events-none"
-        )}
-      >
-        <div
-          onClick={() => setMobileFiltersOpen(false)}
-          className={cn(
-            "absolute inset-0 bg-black/40 transition",
-            mobileFiltersOpen ? "opacity-100" : "opacity-0"
-          )}
-        />
-        <aside
-          className={cn(
-            "absolute inset-y-0 right-0 w-80 max-w-full overflow-y-auto bg-white shadow-xl transition-transform",
-            mobileFiltersOpen ? "translate-x-0" : "translate-x-full"
-          )}
-        >
-          <div className="flex items-center justify-between border-b border-neutral-200 p-4">
-            <div className="text-sm font-semibold">Filtri</div>
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen(false)}
-              aria-label="Aizvērt filtrus"
-              className="rounded-md p-2 hover:bg-neutral-100"
-            >
-              <X className="h-4 w-4" />
-            </button>
+        <div className="mt-6 grid gap-8 lg:grid-cols-[240px_1fr]">
+          {/* Desktop filters */}
+          <div className="hidden lg:block">
+            <ProductFilters />
           </div>
-          <div className="p-4">
-            <ProductFilters
-              state={filters}
-              onChange={setFilters}
-              onReset={() => setFilters(DEFAULT_FILTER_STATE)}
+
+          {/* Grid */}
+          <div>
+            <ProductGrid products={result.products} emptyMessage={emptyMessage} />
+            <CatalogPagination
+              query={query}
+              page={result.page}
+              pageCount={result.pageCount}
             />
           </div>
-        </aside>
-      </div>
+        </div>
+      </CatalogNavigationProvider>
     </Container>
+  );
+}
+
+function CategoryChip({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
+        active
+          ? "bg-neutral-900 text-white"
+          : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+      )}
+    >
+      {children}
+    </Link>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, Search, ShoppingCart, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/layout/Logo";
@@ -19,7 +19,9 @@ const NAV_LINKS = [
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2";
 
-export function Header() {
+/** `cart` — groza saite ar skaitu, ko renderē servera komponente
+ *  (components/cart/HeaderCart); galvene pati ir klienta komponente. */
+export function Header({ cart }: { cart: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname() ?? "/";
 
@@ -77,18 +79,8 @@ export function Header() {
           Meklēt preces…
         </Link>
 
-        {/* Cart */}
-        <Link
-          href="/cart"
-          aria-label="Iepirkumu grozs"
-          className={cn(
-            "ml-auto inline-flex items-center gap-1.5 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:ml-2",
-            FOCUS_RING
-          )}
-        >
-          <ShoppingCart className="h-5 w-5" />
-          <span className="hidden text-sm font-medium md:inline">Grozs</span>
-        </Link>
+        {/* Cart (server-rendered count) */}
+        {cart}
       </Container>
 
       {/* Mobile drawer */}

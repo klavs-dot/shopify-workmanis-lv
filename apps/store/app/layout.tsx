@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { HeaderCart } from "@/components/cart/HeaderCart";
 
 import "./globals.css";
 
@@ -53,7 +54,11 @@ export default function RootLayout({
   return (
     <html lang="lv">
       <body className="flex min-h-screen flex-col bg-white text-neutral-900 antialiased">
-        <Header />
+        {/* Ar Shopify HeaderCart lasa groza cookie, tāpēc visas lapas renderējas
+         *  katram pieprasījumam (ƒ) — apzināts kompromiss par servera
+         *  renderētu groza skaitu. Katalogs joprojām nāk no data cache (60 s);
+         *  lapu `revalidate` / generateStaticParams strādā tikai mock režīmā. */}
+        <Header cart={<HeaderCart />} />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>

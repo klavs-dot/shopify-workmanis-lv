@@ -5,13 +5,15 @@ import type { Money } from "@/types/product";
  *
  *  Intl handles the locale rules — we just pick the symbol style. We don't
  *  use the built-in "currency" style for EUR because Intl puts "€" in front
- *  for en-US but after the number for lv-LV, and we want to be consistent. */
+ *  for en-US but after the number for lv-LV, and we want to be consistent.
+ *  Non-EUR amounts (only mock.shop test data, CAD) get their ISO code as the
+ *  suffix instead of a misleading "€". */
 export function formatMoney(money: Money): string {
   const n = new Intl.NumberFormat("lv-LV", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(money.amount);
-  return `${n} €`;
+  return `${n} ${money.currency === "EUR" ? "€" : money.currency}`;
 }
 
 /** Returns a positive number 0..99 (or null) representing how much percent

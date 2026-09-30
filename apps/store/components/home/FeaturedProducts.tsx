@@ -1,10 +1,10 @@
 import { Container } from "@/components/ui/Container";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ProductGrid } from "@/components/product/ProductGrid";
-import { getFeaturedProducts } from "@/lib/mock-products";
+import { getFeaturedProducts } from "@/lib/shopify";
 
-export function FeaturedProducts() {
-  const featured = getFeaturedProducts(10);
+export async function FeaturedProducts() {
+  const { products, unavailable } = await getFeaturedProducts(10);
   return (
     <section className="py-8 md:py-12">
       <Container>
@@ -14,7 +14,14 @@ export function FeaturedProducts() {
           linkLabel="Visi produkti"
         />
         <div className="mt-4">
-          <ProductGrid products={featured} />
+          <ProductGrid
+            products={products}
+            emptyMessage={
+              unavailable
+                ? "Katalogu šobrīd neizdevās ielādēt. Lūdzu, mēģini vēlreiz pēc brīža."
+                : "Jaunas preces tiek gatavotas publicēšanai — ieskaties vēlāk!"
+            }
+          />
         </div>
       </Container>
     </section>

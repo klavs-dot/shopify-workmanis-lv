@@ -10,7 +10,7 @@ Publiskais e-veikals 14D zīmolam. Atsevišķa aplikācija no admin sistēmas (`
 - **TypeScript** strict
 - **Tailwind v4** (CSS-first, pa root `globals.css`)
 - **lucide-react** ikonas
-- Plānots: **Shopify Storefront API** + Storefront cart → hosted checkout
+- **Shopify Storefront API** (GraphQL, `lib/shopify/`) + Storefront cart → hosted checkout
 
 ## Struktūra
 
@@ -20,24 +20,28 @@ apps/store/
 │   ├── layout.tsx            Root layout ar SEO + Header/Footer
 │   ├── page.tsx              Sākumlapa
 │   ├── products/
-│   │   ├── page.tsx          Katalogs ar filtru sidebar + sort
+│   │   ├── page.tsx          Katalogs (server; filtri/sort/lapošana URL parametros)
 │   │   └── [slug]/page.tsx   Produkta detaļu lapa
 │   ├── categories/
 │   │   ├── page.tsx          Visu kategoriju režģis
 │   │   └── [slug]/page.tsx   Kategorijas lapa
-│   ├── cart/page.tsx         Grozs (placeholder)
+│   ├── cart/                 Grozs (page.tsx) + groza server actions (actions.ts)
+│   ├── api/revalidate/       Shopify webhook → kataloga keša pārbūve
+│   ├── not-found.tsx, error.tsx, global-error.tsx
 │   └── about/ delivery/ contacts/ terms/ privacy/ returns/
 │
 ├── components/
 │   ├── layout/   Header, Footer, mobile drawer
+│   ├── cart/     HeaderCart (skaits galvenē), AddToCartButton, CartLineControls, CheckoutButton
 │   ├── home/     Hero, CategorySection, FeaturedProducts, TrustSection, HowItWorks
-│   ├── product/  ProductCard, ProductGrid, ProductGallery, ProductFilters
+│   ├── product/  ProductCard, ProductGrid, ProductGallery, ProductFilters, CatalogPagination
 │   └── ui/       Button, Badge, Container
 │
 ├── lib/
-│   ├── mock-products.ts      Mock katalogs (16 produkti, 8 kategorijas)
+│   ├── shopify/              Storefront API datu slānis (server-only, sk. zemāk)
+│   ├── catalog-query.ts      /products URL parametri (q, cat, condition, min, max, sort, page)
+│   ├── mock-products.ts      Mock katalogs (16 produkti) — rezerve bez Shopify
 │   ├── categories.ts         Kategoriju definīcijas
-│   ├── shopify.ts            Storefront API klients (PLACEHOLDER)
 │   ├── format-money.ts       EUR formatēšana + discount %
 │   └── utils.ts              cn() className helper
 │
@@ -69,28 +73,81 @@ npm run build
 npm start
 ```
 
-## Mock dati
+## Datu avots: Shopify vai mock
 
-Kamēr nav Shopify Storefront API integrācijas, viss katalogs nāk no
-[`lib/mock-products.ts`](./lib/mock-products.ts) un [`lib/categories.ts`](./lib/categories.ts).
+Viss katalogs iet caur `lib/shopify` (`import { getProducts, … } from "@/lib/shopify"`).
+Lapas un komponentes nekad neimportē `mock-products.ts` vai `shopifyFetch` tieši.
 
-Lai pievienotu jaunu produktu: ievieto papildu objektu `MOCK_PRODUCTS` masīvā.
-Slugs ir stabils un kalpo kā URL.
+| `SHOPIFY_STORE_DOMAIN` | Režīms | Avots |
+|---|---|---|
+| tukšs | `mock` | `lib/mock-products.ts` + `lib/categories.ts`; pasūtīšana izslēgta |
+| `mock.shop` | `mock-shop` | https://mock.shop/api — Shopify publiskais testa API (bez tokena, CAD) |
+| `xxxx.myshopify.com` | `live` | īstais veikals; vajag `SHOPIFY_STOREFRONT_PRIVATE_TOKEN` |
 
-## Shopify integrācija — TODO
+Izstrādei ar Storefront API: `.env.local` ieliec `SHOPIFY_STORE_DOMAIN=mock.shop`.
 
-[`lib/shopify.ts`](./lib/shopify.ts) jau ir API skelets ar `fetchProducts`,
-`fetchProductBySlug`, `createCheckout`, `storefrontFetch`. Funkcijas
-automātiski atgriežas pie mock datiem, ja env vars nav uzstādīti.
+**Kešošana:** kataloga pieprasījumi — Next data cache (`unstable_cache` ap
+kartētajiem rezultātiem, `lib/shopify/client.ts` → `cachedCatalogRead`) ar
+`revalidate: 60` un tagiem `shopify` + `products`/`collections`. Kešojas tikai
+veiksmīgi rezultāti: Shopify kļūda (arī HTTP 200 ar `errors`, piem. THROTTLED)
+netiek saglabāta, un neizdevusies fona atjaunošana atstāj iepriekšējo ierakstu.
+Groza pieprasījumi netiek kešoti. Shopify webhooks uz `POST /api/revalidate`
+(paraksts `X-Shopify-Hmac-Sha256` ar `SHOPIFY_WEBHOOK_SECRET`) pārbūvē katalogu
+uzreiz.
 
-Pirms iebūvē reālu Shopify:
+Ja `SHOPIFY_STORE_DOMAIN` ir īsts veikals, bet nav tokena, lapa **nepārslēdzas**
+uz mock datiem — katalogs rāda "Katalogu šobrīd neizdevās ielādēt", serveris
+logā kļūdu.
 
-1. Iegūsti Shopify Partner Storefront access token.
-2. Aizpildi `.env.local` ar `NEXT_PUBLIC_STORE_DOMAIN` un `SHOPIFY_STOREFRONT_ACCESS_TOKEN`.
-3. Implementē GraphQL queries iekš `shopify.ts` (TODO komentāri jau ir failā).
-4. Aizvieto `mock-products.ts` izsaukumus ar `fetchProducts()` lapās, kas to lieto.
+**Kartēšana Shopify → `types/product.ts`** (`lib/shopify/mappers.ts`):
 
-Pilnāks plāns: `obsidian/14D-Shopify-System-Obsidian/06_SHOPIFY_INTEGRATION.md`.
+- `slug` = `handle`; `variantId` = pirmā pieejamā varianta GID
+- stāvoklis — metafield `custom.condition` → tags `condition:<vērtība>` → `used`
+- klienta piezīme — metafield `custom.customer_note` (teksts, ne HTML)
+- kategorija — pirmā kolekcija, kuras handle = kategorijas slug → tags `cat:<slug>` → `citi-piedavajumi`
+- cena / `compareAtPrice` — varianta `price` / `compareAtPrice` (tikai ja lielāka)
+- `availableForSale=false` → "Pārdots" (sarakstos netiek rādīts, tiešajā URL — jā)
+- `quantityAvailable` → atlikuma žetoni; ja Shopify to nerāda, žetonu nav
+- apraksts — `descriptionHtml` pārvērsts tekstā (nekad `dangerouslySetInnerHTML`)
+
+Metafields `custom.condition` un `custom.customer_note` Shopify adminā jāatver
+Storefront API piekļuvei (Settings → Custom data → Products).
+
+## Grozs un apmaksa
+
+Grozs dzīvo Shopify (Storefront Cart API); pārlūks glabā tikai groza id
+httpOnly cookie `14d_cart` (30 dienas, `sameSite=lax`, produkcijā `secure`).
+Apmaksa un piegādes izvēle notiek Shopify checkout (`cart.checkoutUrl`).
+
+- `lib/shopify/cart.ts` — `createCart`, `addCartLines`, `updateCartLines`,
+  `removeCartLines`, `getCartById` (bez keša; īstajā veikalā ar
+  `Shopify-Storefront-Buyer-IP`)
+- `lib/shopify/cart-session.ts` — cookie + `getCart()` (pašreizējā pircēja grozs,
+  viens Shopify pieprasījums uz lapas ielādi)
+- `app/cart/actions.ts` — server actions: `addToCart`, `updateCartLine`
+  (0 = noņemt), `checkout` (pārlasa grozu → redirect uz checkout), `forgetStaleCart`
+- Viena prece grozā 1 gab., ja vien Shopify `quantityAvailable` nav > 1;
+  pārdotas preces grozā nenonāk. Serveris to pārbauda katrā darbībā.
+- Ja cookie norāda uz Shopify vairs nezināmu grozu (termiņš beidzies,
+  pasūtījums noformēts), galvene to klusi izmet.
+- Mock režīmā (bez `SHOPIFY_STORE_DOMAIN`) poga "Pievienot grozam" ir atslēgta,
+  `/cart` saka, ka pasūtīšana būs drīzumā; cookie netiek lasīts.
+
+**Renderēšana:** galvenes groza skaits nāk no cookie, tāpēc ar Shopify
+konfigurāciju visas lapas renderējas katram pieprasījumam (ƒ), arī saturs kā
+/about vai /terms. Tas ir apzināts kompromiss par servera renderētu groza skaitu.
+Katalogs joprojām nāk no Next data cache (60 s), tāpēc Shopify katalogam netiek
+prasīts katru reizi; papildu Shopify pieprasījums ir tikai groza nolasīšana
+apmeklētājiem ar grozu (galvene to ielādē Suspense robežā, lapa neaizkavējas).
+Lapu `revalidate` un `generateStaticParams` tad neko neprerenderē; tie darbojas
+tikai mock režīmā, kur lapas paliek statiskas. Ja statiskas/ISR lapas kļūst
+svarīgas, groza skaitu jāielādē atsevišķi (route handler + klienta komponente). Mainot `SHOPIFY_STORE_DOMAIN`, jāveic
+jauns build (Vercel: pēc env izmaiņas — Redeploy).
+
+**Checkout domēns:** headless veikalā Shopify primārais domēns nedrīkst būt
+`14d.lv` (tas ir šis Next.js veikals) — citādi `checkoutUrl` vedīs atpakaļ uz
+šo lietotni. Checkout domēnam izmanto `*.myshopify.com` vai apakšdomēnu,
+piem., `checkout.14d.lv`, kas Shopify adminā pievienots kā domēns.
 
 ## Drošība
 

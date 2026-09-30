@@ -3,20 +3,21 @@ import Link from "next/link";
 
 import { Container } from "@/components/ui/Container";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { CATEGORIES } from "@/lib/categories";
-import { countProductsByCategory } from "@/lib/mock-products";
+import { getCategories } from "@/lib/shopify";
 
 // Image-based category tiles. Compact, dense — kā jobalots.com kategoriju
-// karuselis. 4 kolonnas desktop, 2 mobilajā.
-export function CategorySection() {
+// karuselis. 4 kolonnas desktop, 2 mobilajā. Ja Shopify katalogs nav
+// sasniedzams, preču skaitu nerādām (tie būtu maldinoši "0 preces").
+export async function CategorySection() {
+  const { categories, unavailable } = await getCategories();
   return (
     <section className="py-8 md:py-12">
       <Container>
         <SectionHeader title="Kategorijas" href="/categories" linkLabel="Visas" />
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:gap-3 lg:grid-cols-4">
-          {CATEGORIES.map((c) => {
-            const count = countProductsByCategory(c.slug);
+          {categories.map((c) => {
+            const count = c.productCount;
             return (
               <Link
                 key={c.slug}
@@ -39,9 +40,11 @@ export function CategorySection() {
                   <div className="text-sm font-semibold text-white md:text-base">
                     {c.name}
                   </div>
-                  <div className="text-[11px] text-white/85">
-                    {count} {count === 1 ? "prece" : "preces"}
-                  </div>
+                  {!unavailable && (
+                    <div className="text-[11px] text-white/85">
+                      {count} {count === 1 ? "prece" : "preces"}
+                    </div>
+                  )}
                 </div>
               </Link>
             );
